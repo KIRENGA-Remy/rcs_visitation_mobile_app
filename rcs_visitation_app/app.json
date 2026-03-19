@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "RCS Visitation",
+    "slug": "rcs-visitation",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./src/assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1F5D3A"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.remy.rcsvisitation",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan visitor QR codes at the prison gate.",
+        "NSFaceIDUsageDescription": "Used to secure app access."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/adaptive-icon.png",
+        "backgroundColor": "#1F5D3A"
+      },
+      "package": "com.remy.rcsvisitation",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": { "favicon": "./src/assets/images/favicon.png" },
+    "plugins": [
+      [
+        "expo-camera",
+        { "cameraPermission": "Allow RCS Visitation to use camera for QR code scanning." }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/images/notification-icon.png",
+          "color": "#1F5D3A",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-secure-store"
+      ]
+    ],
+    "extra": {
+      "apiBaseUrl": "http://192.168.1.100:3000/api/v1",
+      "eas": { "projectId": "your-eas-project-id" }
+    }
+  }
+}

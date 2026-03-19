@@ -1,0 +1,528 @@
+// ============================================================
+// RCS Prison Visitation System — Prisma Schema
+// Stack: Node.js + TypeScript + Express + PostgreSQL + Prisma
+// Architecture: MVP first, extensible for full rollout
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  VISITOR         // family/friend visiting a prisoner
+  PRISON_OFFICER  // handles check-in, approval, logging
+  ADMIN           // manages prisoners, schedules, system
+
+  // ➕ Future roles (add later):
+  // LEGAL_VISITOR
+  // SUPPORT_STAFF
+  // SYSTEM_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED   // temporarily blocked (e.g. banned from visits)
+  INACTIVE    // soft-deleted or dormant
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PrisonerStatus {
+  ACTIVE       // currently in this prison
+  TRANSFERRED  // moved to another prison
+  RELEASED     // no longer imprisoned
+  RESTRICTED   // cannot receive visitors (disciplinary)
+  DECEASED
+}
+
+enum VisitType {
+  REGULAR      // standard family/friend visit
+  LEGAL        // lawyer or legal representative (➕ future priority flow)
+  MEDICAL      // health-related visit
+  OFFICIAL     // government/NGO officials
+}
+
+enum VisitRequestStatus {
+  PENDING     // submitted, awaiting officer review
+  APPROVED    // officer approved — visitor can come
+  REJECTED    // officer rejected with reason
+  CANCELLED   // visitor cancelled before visit
+  CHECKED_IN  // visitor arrived and was let in
+  COMPLETED   // visit ended normally
+  NO_SHOW     // approved but visitor never arrived
+  EXPIRED     // approved but slot passed without check-in
+}
+
+enum ScheduleStatus {
+  OPEN        // accepting bookings
+  FULL        // max capacity reached
+  CANCELLED   // this slot was cancelled (staff shortage, lockdown)
+  CLOSED      // slot time has passed
+  RESTRICTED  // no visits allowed this day (emergency, lockdown)
+}
+
+enum VisitLogIncidentType {
+  NONE          // normal visit, no issues
+  CONTRABAND    // prohibited item found or suspected
+  BEHAVIOUR     // disruptive behaviour
+  OVERSTAY      // visitor exceeded allowed time
+  UNAUTHORIZED  // unauthorized person attempted entry
+  OTHER
+}
+
+enum NotificationChannel {
+  IN_APP
+  SMS
+  EMAIL
+}
+
+enum NotificationType {
+  VISIT_APPROVED
+  VISIT_REJECTED
+  VISIT_REMINDER      // sent 24h before approved visit
+  VISIT_CANCELLED
+  VISIT_CHECKED_IN
+  VISIT_COMPLETED
+  PRISONER_TRANSFERRED
+  SLOT_OPENING        // new slots available
+  SYSTEM_ALERT
+}
+
+// ============================================================
+// MODEL 1 — USER
+// Central authentication & role model.
+// VisitorProfile is separated for clean SRP.
+// ============================================================
+
+model User {
+  id              String      @id @default(uuid())
+  email           String      @unique
+  phone           String      @unique   // primary contact — SMS notifications
+  passwordHash    String
+  role            UserRole    @default(VISITOR)
+  status          UserStatus  @default(ACTIVE)
+  firstName       String
+  lastName        String
+  gender          Gender?
+  expoPushToken   String?
+  dateOfBirth     DateTime?
+  nationalId      String?     @unique   // Rwanda NID — used for identity verification
+  profilePhoto    String?     // URL to stored image
+  preferredLang   String      @default("rw")  // rw = Kinyarwanda, en = English
+  lastLoginAt     DateTime?
+  emailVerified   Boolean     @default(false)
+  phoneVerified   Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  visitorProfile      VisitorProfile?       // only if role = VISITOR
+  processedRequests   VisitRequest[]        @relation("ProcessedBy")    // officer: requests they processed
+  conductedLogs       VisitLog[]            @relation("ConductedBy")    // officer: logs they created
+  notifications       Notification[]
+  passwordResets      PasswordReset[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([nationalId])
+  @@index([role])
+  @@map("users")
+}
+
+// ============================================================
+// MODEL 2 — VISITOR PROFILE
+// Separated from User to keep User lean.
+// Only exists for users with role = VISITOR.
+// Contains visit-specific data and relationship to prisoner.
+// ============================================================
+
+model VisitorProfile {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relationship to prisoner (who they are visiting)
+  // One visitor profile can be linked to MULTIPLE prisoners (family visiting 2 relatives)
+  approvedPrisoners   ApprovedVisitorPrisoner[]
+
+  // Visit history counts (denormalized for fast queries)
+  totalVisitsCount    Int       @default(0)
+  lastVisitAt         DateTime?
+
+  // Emergency contact (optional)
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
+  // Address — important for distance/accessibility context
+  district            String?   // Rwanda district
+  sector              String?
+  cell                String?
+
+  // Ban info — if visitor is banned from a specific prison
+  isBanned            Boolean   @default(false)
+  bannedReason        String?
+  bannedAt            DateTime?
+  bannedUntil         DateTime? // null = permanent ban
+
+  // Relationship to prisoners they visit
+  visitRequests       VisitRequest[]
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([isBanned])
+  @@map("visitor_profiles")
+}
+
+// Junction: A visitor can be approved to visit multiple prisoners
+// A prisoner can have multiple approved visitors
+model ApprovedVisitorPrisoner {
+  id                String         @id @default(uuid())
+  visitorProfileId  String
+  visitorProfile    VisitorProfile @relation(fields: [visitorProfileId], references: [id], onDelete: Cascade)
+  prisonerId        String
+  prisoner          Prisoner       @relation(fields: [prisonerId], references: [id], onDelete: Cascade)
+  relationship      String         // "spouse", "parent", "sibling", "friend", "lawyer"
+  approvedAt        DateTime       @default(now())
+  approvedByUserId  String?        // admin who approved this relationship
+  isActive          Boolean        @default(true)
+  notes             String?
+
+  @@unique([visitorProfileId, prisonerId])
+  @@index([prisonerId])
+  @@map("approved_visitor_prisoners")
+}
+
+// ============================================================
+// MODEL 3 — PRISON
+// Supports multiple prisons in Rwanda.
+// Each prison has its own schedule, capacity, officers.
+// ============================================================
+
+model Prison {
+  id              String    @id @default(uuid())
+  name            String    @unique           // e.g. "Kigali 1930 Prison"
+  code            String    @unique           // e.g. "KGL-1930"
+  district        String
+  sector          String?
+  address         String
+  latitude        Float?
+  longitude       Float?
+  contactPhone    String?
+  contactEmail    String?
+  capacity        Int                         // max prisoner capacity
+  isActive        Boolean   @default(true)
+
+  // Visit configuration (per prison rules)
+  maxVisitorsPerSlot      Int     @default(20)  // max concurrent visitors
+  visitDurationMinutes    Int     @default(30)  // default slot duration
+  maxVisitsPerPrisonerPerWeek Int @default(2)   // frequency limit
+
+  // Opening days (stored as bitmask: Mon=1,Tue=2,Wed=4,Thu=8,Fri=16,Sat=32,Sun=64)
+  // Or use a JSON field for flexibility
+  visitingDaysConfig      Json?   // { mon: true, tue: false, ... }
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  prisoners       Prisoner[]
+  schedules       VisitSchedule[]
+
+  @@index([code])
+  @@index([district])
+  @@map("prisons")
+}
+
+// ============================================================
+// MODEL 4 — PRISONER
+// The person being visited.
+// Can be transferred between prisons.
+// ============================================================
+
+model Prisoner {
+  id                String          @id @default(uuid())
+  prisonId          String
+  prison            Prison          @relation(fields: [prisonId], references: [id])
+  prisonerNumber    String          @unique   // official RCS prisoner ID
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime?
+  gender            Gender
+  nationalId        String?
+  cellBlock         String?         // cell block / wing
+  cellNumber        String?
+  status            PrisonerStatus  @default(ACTIVE)
+  admissionDate     DateTime
+  expectedReleaseDate DateTime?
+  offenseCategory   String?         // broad category only (for admin use)
+
+  // Visitor restrictions
+  visitingRestricted     Boolean   @default(false)
+  restrictionReason      String?
+  restrictionUntil       DateTime?
+
+  // Transfer tracking
+  transferredFromPrisonId String?
+  transferredAt           DateTime?
+  transferNotes           String?
+
+  // Counters (denormalized)
+  totalVisitsReceived Int     @default(0)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  visitRequests         VisitRequest[]
+  approvedVisitors      ApprovedVisitorPrisoner[]
+
+  @@index([prisonId])
+  @@index([prisonerNumber])
+  @@index([status])
+  @@map("prisoners")
+}
+
+// ============================================================
+// MODEL 5 — VISIT SCHEDULE
+// Represents an available time slot at a specific prison.
+// Officers/admins create these. Visitors book into them.
+// Solves: "Lack of Structured Scheduling" problem.
+// ============================================================
+
+model VisitSchedule {
+  id                String          @id @default(uuid())
+  prisonId          String
+  prison            Prison          @relation(fields: [prisonId], references: [id])
+
+  date              DateTime        @db.Date        // the calendar date of this slot
+  startTime         DateTime        // full datetime for easy comparison
+  endTime           DateTime
+  label             String?         // e.g. "Morning Session", "Afternoon Session"
+  maxCapacity       Int             // max visitors for this slot
+  currentBookings   Int             @default(0)     // denormalized count — faster than COUNT()
+  status            ScheduleStatus  @default(OPEN)
+  visitType         VisitType       @default(REGULAR)  // some slots are LEGAL only
+  createdByUserId   String?         // admin who created this slot
+  notes             String?         // e.g. "Reduced capacity due to maintenance"
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  visitRequests     VisitRequest[]
+
+  @@index([prisonId, date])
+  @@index([status])
+  @@index([startTime])
+  @@map("visit_schedules")
+}
+
+// ============================================================
+// MODEL 6 — VISIT REQUEST
+// Core transactional model. A visitor requests to visit a prisoner.
+// Goes through: PENDING → APPROVED/REJECTED → CHECKED_IN → COMPLETED
+// Solves: "Lack of Structured Scheduling", "Visit Rejections Without Transparency"
+// ============================================================
+
+model VisitRequest {
+  id                  String              @id @default(uuid())
+
+  // Who is visiting
+  visitorProfileId    String
+  visitorProfile      VisitorProfile      @relation(fields: [visitorProfileId], references: [id])
+
+  // Who they are visiting
+  prisonerId          String
+  prisoner            Prisoner            @relation(fields: [prisonerId], references: [id])
+
+  // Which time slot
+  scheduleId          String
+  schedule            VisitSchedule       @relation(fields: [scheduleId], references: [id])
+
+  // Visit details
+  visitType           VisitType           @default(REGULAR)
+  purposeNote         String?             // visitor's stated reason
+  numberOfAdults      Int                 @default(1)    // visitor + any adult companions
+  numberOfChildren    Int                 @default(0)
+
+  // Status lifecycle
+  status              VisitRequestStatus  @default(PENDING)
+  rejectionReason     String?
+  cancellationReason  String?
+  cancelledAt         DateTime?
+
+  // Officer who processed this request
+  processedByUserId   String?
+  processedBy         User?               @relation("ProcessedBy", fields: [processedByUserId], references: [id])
+  processedAt         DateTime?
+
+  // QR Code for check-in (generated on approval)
+  qrCode              String?             @unique
+  qrCodeExpiresAt     DateTime?
+
+  // Check-in / Check-out
+  checkedInAt         DateTime?
+  checkedOutAt        DateTime?
+  actualDurationMins  Int?                // computed on checkout
+
+  // Reference number shown to visitor
+  referenceNumber     String              @unique @default(cuid())
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  // Relations
+  visitLog            VisitLog?
+  notifications       Notification[]
+
+  @@unique([visitorProfileId, prisonerId, scheduleId])  // one booking per slot per visitor-prisoner pair
+  @@index([visitorProfileId])
+  @@index([prisonerId])
+  @@index([scheduleId])
+  @@index([status])
+  @@index([referenceNumber])
+  @@index([qrCode])
+  @@map("visit_requests")
+}
+
+// ============================================================
+// MODEL 7 — VISIT LOG
+// Immutable record of what actually happened during a visit.
+// Created by officer on check-in. Updated on check-out.
+// Solves: "Paper-Based Record Keeping", "Security Risks", "Limited Visiting Time Management"
+// ============================================================
+
+model VisitLog {
+  id                  String                  @id @default(uuid())
+  visitRequestId      String                  @unique
+  visitRequest        VisitRequest            @relation(fields: [visitRequestId], references: [id])
+
+  // Officer who conducted/logged this visit
+  conductedByUserId   String
+  conductedBy         User                    @relation("ConductedBy", fields: [conductedByUserId], references: [id])
+
+  // Timing
+  actualCheckinTime   DateTime
+  actualCheckoutTime  DateTime?
+  durationMinutes     Int?                    // computed on checkout
+
+  // Visitor count actually present (may differ from requested)
+  actualAdultsPresent   Int   @default(0)
+  actualChildrenPresent Int   @default(0)
+
+  // Incident tracking (solves Security Risks)
+  incidentType        VisitLogIncidentType    @default(NONE)
+  incidentNotes       String?
+  incidentFlagged     Boolean                 @default(false)
+  flaggedAt           DateTime?
+
+  // Officer observations
+  officerNotes        String?
+  visitQuality        String?                 // "NORMAL" | "TENSE" | "EMOTIONAL" — optional
+
+  // Items checked
+  itemsCarriedIn      String?                 // description of allowed items
+  itemsConfiscated    String?                 // description of confiscated items
+
+  // Immutability: logs should not be edited after creation
+  // Use a separate amendment model if corrections needed (future)
+  isAmended           Boolean   @default(false)
+  amendmentReason     String?
+  amendedAt           DateTime?
+  amendedByUserId     String?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([visitRequestId])
+  @@index([conductedByUserId])
+  @@index([incidentFlagged])
+  @@index([actualCheckinTime])
+  @@map("visit_logs")
+}
+
+// ============================================================
+// MODEL 8 — NOTIFICATION  [➕ Add in Phase 2]
+// Solves: "Poor Communication with Visitors", "Emergency Situations"
+// ============================================================
+
+model Notification {
+  id              String              @id @default(uuid())
+  userId          String
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type            NotificationType
+  channel         NotificationChannel @default(IN_APP)
+  title           String
+  body            String
+  isRead          Boolean             @default(false)
+  readAt          DateTime?
+  isSent          Boolean             @default(false)
+  sentAt          DateTime?
+  failedAt        DateTime?
+  failReason      String?
+
+  // Optional link back to a visit request
+  visitRequestId  String?
+  visitRequest    VisitRequest?       @relation(fields: [visitRequestId], references: [id])
+
+  // Metadata for SMS/email
+  deliveryMeta    Json?               // { messageId, provider, ... }
+
+  createdAt       DateTime            @default(now())
+
+  @@index([userId, isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ============================================================
+// MODEL 9 — SETTINGS
+// Per-prison or global system configuration.
+// ============================================================
+
+model Settings {
+  id          String    @id @default(uuid())
+  scope       String    // "GLOBAL" | prison.id for per-prison settings
+  key         String    // e.g. "max_visitors_per_slot", "visit_duration_minutes"
+  value       String    // stored as string, parsed in application layer
+  description String?
+  updatedAt   DateTime  @updatedAt
+  updatedBy   String?   // userId
+
+  @@unique([scope, key])
+  @@map("settings")
+}
+
+// ============================================================
+// UTILITY MODEL — PASSWORD RESET
+// ============================================================
+
+model PasswordReset {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([token])
+  @@map("password_resets")
+}
