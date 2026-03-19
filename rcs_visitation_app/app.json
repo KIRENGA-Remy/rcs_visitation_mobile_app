@@ -17,7 +17,7 @@
       "bundleIdentifier": "com.remy.rcsvisitation",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to scan visitor QR codes at the prison gate.",
-        "NSFaceIDUsageDescription": "Used to secure app access."
+        "NSFaceIDUsageDescription": "Used to secure app access"
       }
     },
     "android": {
