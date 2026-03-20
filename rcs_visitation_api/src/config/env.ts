@@ -14,6 +14,9 @@ const envSchema = z.object({
   BCRYPT_ROUNDS:          z.coerce.number().default(12),
   RATE_LIMIT_WINDOW_MS:   z.coerce.number().default(900000),
   RATE_LIMIT_MAX:         z.coerce.number().default(100),
+  ADMIN_PASSWORD:         z.string().min(8),
+  OFFICER_PASSWORD:       z.string().min(8),
+  VISITOR_PASSWORD:       z.string().min(8)
 });
 
 const parsed = envSchema.safeParse(process.env);

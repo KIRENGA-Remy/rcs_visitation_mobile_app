@@ -17,6 +17,16 @@ export const listUsersQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+export const updatePushTokenSchema = z.object({
+  expoPushToken: z.string()
+    .min(1, 'Push token is required')
+    .refine(
+      (token) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['),
+      'Invalid Expo push token format. Must start with "ExponentPushToken[" or "ExpoPushToken["'
+    ),
+});
+
 export type UpdateUserRoleDto   = z.infer<typeof updateUserRoleSchema>;
 export type UpdateUserStatusDto = z.infer<typeof updateUserStatusSchema>;
 export type ListUsersQuery      = z.infer<typeof listUsersQuerySchema>;
+export type UpdatePushTokenDto  = z.infer<typeof updatePushTokenSchema>;

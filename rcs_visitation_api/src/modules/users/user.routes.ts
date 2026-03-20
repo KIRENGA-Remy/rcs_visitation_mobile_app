@@ -3,9 +3,12 @@ import { userController } from './user.controller';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
-import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema } from './user.schema';
+import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema, updatePushTokenSchema } from './user.schema';
 
 const router = Router();
+
+// PATCH /api/v1/users/push-token 
+router.patch('/push-token', authenticate, validate(updatePushTokenSchema), userController.updatePushToken.bind(userController));
 
 // GET  /api/v1/users              → list all users (admin)
 router.get('/',      authenticate, authorize('ADMIN'), validate(listUsersQuerySchema, 'query'), userController.findAll.bind(userController));

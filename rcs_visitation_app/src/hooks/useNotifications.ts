@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '@api/notifications';
 import { useNotificationStore } from '@stores/notificationStore';
@@ -6,18 +7,30 @@ import { QUERY_KEYS } from '@constants';
 export const useNotifications = (params?: { page?: number; unreadOnly?: boolean }) =>
   useQuery({
     queryKey: [...QUERY_KEYS.NOTIFICATIONS, params],
-    queryFn: () => notificationsApi.list(params),
+    queryFn:  () => notificationsApi.list(params),
     staleTime: 30 * 1000,
   });
 
 export const useUnreadCount = () => {
   const { setUnreadCount } = useNotificationStore();
-  return useQuery({
-    queryKey: QUERY_KEYS.UNREAD_COUNT,
-    queryFn: notificationsApi.unreadCount,
+
+  const query = useQuery({
+    queryKey:       QUERY_KEYS.UNREAD_COUNT,
+    queryFn:        notificationsApi.unreadCount,
     refetchInterval: 30 * 1000,
-    onSuccess: setUnreadCount,
-  } as any);
+    // ── onSuccess was REMOVED in TanStack Query v5 ──────────────────────────
+    // It silently did nothing. The fix is to sync the store in useEffect
+    // watching query.data, which fires every time data changes.
+  });
+
+  // Sync server count → local Zustand store whenever data arrives
+  useEffect(() => {
+    if (query.data !== undefined) {
+      setUnreadCount(query.data);
+    }
+  }, [query.data, setUnreadCount]);
+
+  return query;
 };
 
 export const useMarkRead = () => {
@@ -45,3 +58,4 @@ export const useMarkAllRead = () => {
     },
   });
 };
+

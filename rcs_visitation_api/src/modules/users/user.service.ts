@@ -1,7 +1,8 @@
 import { prisma } from '../../config/prisma';
-import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery } from './user.schema';
+import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto } from './user.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
+import { ValidationError, NotFoundError } from '../../shared/utils/errors';
 
 // Safe select — never return passwordHash
 const USER_SELECT = {
@@ -10,6 +11,7 @@ const USER_SELECT = {
   role: true, status: true, preferredLang: true,
   emailVerified: true, phoneVerified: true,
   lastLoginAt: true, createdAt: true, updatedAt: true,
+  expoPushToken: true,
   visitorProfile: {
     select: {
       id: true, district: true, sector: true, cell: true,
@@ -84,6 +86,44 @@ export class UserService {
       },
       select: { id: true, status: true },
     });
+  }
+
+  async updatePushToken(userId: string, expoPushToken: string) {
+    // Validate token format
+    if (!expoPushToken || typeof expoPushToken !== 'string') {
+      throw new ValidationError('expoPushToken is required and must be a string');
+    }
+    
+    const isValidFormat = 
+      expoPushToken.startsWith('ExponentPushToken[') || 
+      expoPushToken.startsWith('ExpoPushToken[');
+    
+    if (!isValidFormat) {
+      throw new ValidationError('Invalid Expo push token format');
+    }
+    
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, status: true },
+    });
+    
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    
+    if (user.status === 'INACTIVE') {
+      throw new ValidationError('Cannot update token for inactive user');
+    }
+    
+    // Update push token
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { expoPushToken },
+      select: { id: true, expoPushToken: true },
+    });
+    
+    return updatedUser;
   }
 }
 
