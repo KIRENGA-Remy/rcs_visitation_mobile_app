@@ -55,7 +55,7 @@
     ],
     "extra": {
       "apiBaseUrl": "http://192.168.1.100:3000/api/v1",
-      "eas": { "projectId": "your-eas-project-id" }
+      "eas": { "projectId": "e860c81c-ab21-454f-b136-974c9b184ab1" }
     }
   }
 }

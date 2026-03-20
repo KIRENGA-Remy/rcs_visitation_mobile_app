@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { userService } from './user.service';
 import { sendSuccess, sendError } from '../../shared/utils/apiResponse';
+import { ValidationError, NotFoundError } from '../../shared/utils/errors';
 import { AuthRequest } from '../../shared/types';
 
 export class UserController {
@@ -34,6 +35,24 @@ export class UserController {
     catch (err: any) {
       if (err.message?.includes('cannot delete') || err.message?.includes('cannot be deleted')) {
         sendError(res, err.message, 422); return;
+      }
+      next(err);
+    }
+  }
+
+  async updatePushToken(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { expoPushToken } = req.body;
+      const updatedUser = await userService.updatePushToken(req.user!.id, expoPushToken);
+      sendSuccess(res, { userId: updatedUser.id }, 'Push token updated successfully');
+    } catch (err: any) {
+      if (err instanceof ValidationError) {
+        sendError(res, err.message, 400);
+        return;
+      }
+      if (err instanceof NotFoundError) {
+        sendError(res, err.message, 404);
+        return;
       }
       next(err);
     }

@@ -16,7 +16,4 @@ router.post('/login', authRateLimiter, validate(loginSchema), authController.log
 // GET /api/v1/auth/me
 router.get('/me', authenticate, authController.getMe.bind(authController));
 
-// POST /api/v1/auth/push-token
-router.post('/push-token', authenticate, authController.savePushToken.bind(authController));
-
 export default router;

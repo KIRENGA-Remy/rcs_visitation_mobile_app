@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { env } from '../src/config/env'
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -29,10 +30,8 @@ async function main() {
     },
   });
 
-  console.log('✅ Prisons created:', kgl.name, musanze.name);
-
   // ── Create Admin User ─────────────────────────────────────
-  const adminHash = await bcrypt.hash('Admin@1234', 12);
+  const adminHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@rcs.gov.rw' },
     update: {},
@@ -44,7 +43,7 @@ async function main() {
   });
 
   // ── Create Prison Officer ─────────────────────────────────
-  const officerHash = await bcrypt.hash('Officer@1234', 12);
+  const officerHash = await bcrypt.hash(env.OFFICER_PASSWORD, 12);
   const officer = await prisma.user.upsert({
     where: { email: 'officer@kgl1930.rcs.gov.rw' },
     update: {},
@@ -56,7 +55,7 @@ async function main() {
   });
 
   // ── Create Visitor ────────────────────────────────────────
-  const visitorHash = await bcrypt.hash('Visitor@1234', 12);
+  const visitorHash = await bcrypt.hash(env.VISITOR_PASSWORD, 12);
   const visitor = await prisma.user.upsert({
     where: { email: 'amina.uwase@example.rw' },
     update: {},
@@ -71,8 +70,6 @@ async function main() {
     },
   });
 
-  console.log('✅ Users created:', admin.email, officer.email, visitor.email);
-
   // ── Create Prisoner ───────────────────────────────────────
   const prisoner = await prisma.prisoner.upsert({
     where: { prisonerNumber: 'KGL-2023-001' },
@@ -84,8 +81,6 @@ async function main() {
       cellBlock: 'Block A', cellNumber: 'A-12',
     },
   });
-
-  console.log('✅ Prisoner created:', prisoner.prisonerNumber);
 
   // ── Create Visit Schedule ─────────────────────────────────
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
@@ -102,13 +97,6 @@ async function main() {
       createdByUserId: admin.id,
     },
   });
-
-  console.log('✅ Visit schedule created');
-  console.log('\n🎉 Seeding complete!');
-  console.log('\n📋 Test Credentials:');
-  console.log('  Admin   : admin@rcs.gov.rw         / Admin@1234');
-  console.log('  Officer : officer@kgl1930.rcs.gov.rw / Officer@1234');
-  console.log('  Visitor : amina.uwase@example.rw   / Visitor@1234');
 }
 
 main()
