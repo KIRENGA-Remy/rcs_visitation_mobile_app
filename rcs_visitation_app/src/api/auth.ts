@@ -25,7 +25,7 @@ export const authApi = {
 
       if (expoPushToken) {
         // Axios interceptor automatically attaches JWT
-        await client.post('/auth/push-token', { expoPushToken });
+        await client.patch('/users/push-token', { expoPushToken });
       }
     } catch (error) {
       console.warn('Failed to register Expo push token:', error);
