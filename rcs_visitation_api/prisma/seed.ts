@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding RCS Visitation database...');
+  console.log('Seeding RCS Visitation database...');
 
   // ── Create Prisons ────────────────────────────────────────
   const kgl = await prisma.prison.upsert({
@@ -33,10 +33,10 @@ async function main() {
   // ── Create Admin User ─────────────────────────────────────
   const adminHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@rcs.gov.rw' },
+    where: { email: 'gitoliremy@gmail.com' },
     update: {},
     create: {
-      email: 'admin@rcs.gov.rw', phone: '+250788000001',
+      email: 'gitoliremy@gmail.com', phone: '+250792441050',
       passwordHash: adminHash, role: 'ADMIN',
       firstName: 'System', lastName: 'Administrator',
     },
@@ -45,25 +45,25 @@ async function main() {
   // ── Create Prison Officer ─────────────────────────────────
   const officerHash = await bcrypt.hash(env.OFFICER_PASSWORD, 12);
   const officer = await prisma.user.upsert({
-    where: { email: 'officer@kgl1930.rcs.gov.rw' },
+    where: { email: 'gitoliremyclaudien5@gmail.com' },
     update: {},
     create: {
-      email: 'officer@kgl1930.rcs.gov.rw', phone: '+250788000002',
+      email: 'gitoliremyclaudien5@gmail.com', phone: '+250732839149',
       passwordHash: officerHash, role: 'PRISON_OFFICER',
-      firstName: 'Jean', lastName: 'Mugisha',
+      firstName: 'Kirenga', lastName: 'Remy',
     },
   });
 
   // ── Create Visitor ────────────────────────────────────────
   const visitorHash = await bcrypt.hash(env.VISITOR_PASSWORD, 12);
   const visitor = await prisma.user.upsert({
-    where: { email: 'amina.uwase@example.rw' },
+    where: { email: 'gitoliremyclaudien2005@gmail.com' },
     update: {},
     create: {
-      email: 'amina.uwase@example.rw', phone: '+250788000003',
+      email: 'gitoliremyclaudien2005@gmail.com', phone: '+250786146982',
       passwordHash: visitorHash, role: 'VISITOR',
-      firstName: 'Amina', lastName: 'Uwase',
-      nationalId: '1199780012345678', gender: 'FEMALE',
+      firstName: 'GITORI', lastName: 'Remy',
+      nationalId: '1200580024050004', gender: 'MALE',
       visitorProfile: {
         create: { district: 'Gasabo', sector: 'Remera' }
       },
