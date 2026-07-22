@@ -10,28 +10,30 @@ interface AuthState {
   language:    'en' | 'rw';
   isLoading:   boolean;
   isHydrated:  boolean;
+  lastActiveAt: number;
 
-  setAuth:     (user: AuthUser, accessToken: string, refreshToken: string) => Promise<void>;
-  clearAuth:   () => Promise<void>;
-  setUser:     (user: AuthUser) => void;
-  setLanguage: (lang: 'en' | 'rw') => Promise<void>;
-  hydrate:     () => Promise<void>;
+  setAuth:      (user: AuthUser, accessToken: string, refreshToken: string) => Promise<void>;
+  clearAuth:    () => Promise<void>;
+  setUser:      (user: AuthUser) => void;
+  setLanguage:  (lang: 'en' | 'rw') => Promise<void>;
+  hydrate:      () => Promise<void>;
+  setTokens:    (accessToken: string, refreshToken: string) => Promise<void>;
+  markActive:   () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user:        null,
-  accessToken: null,
-  language:    'en',
-  isLoading:   false,
-  isHydrated:  false,
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user:         null,
+  accessToken:  null,
+  language:     'en',
+  isLoading:    false,
+  isHydrated:   false,
+  lastActiveAt: Date.now(),
 
   setAuth: async (user, accessToken, refreshToken) => {
-    // Tokens go to SecureStore (encrypted)
     await setSecure(STORAGE_KEYS.ACCESS_TOKEN,  accessToken);
     await setSecure(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
-    // User profile goes to AsyncStorage (may be large JSON)
     await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-    set({ user, accessToken });
+    set({ user, accessToken, lastActiveAt: Date.now() });
   },
 
   clearAuth: async () => {
@@ -60,9 +62,22 @@ export const useAuthStore = create<AuthState>((set) => ({
         accessToken: token,
         language: (lang as 'en' | 'rw') ?? 'en',
         isHydrated: true,
+        lastActiveAt: Date.now(),
       });
     } catch {
       set({ isHydrated: true });
+    }
+  },
+
+  setTokens: async (accessToken, refreshToken) => {
+    await setSecure(STORAGE_KEYS.ACCESS_TOKEN,  accessToken);
+    await setSecure(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+    set({ accessToken, lastActiveAt: Date.now() });
+  },
+
+  markActive: () => {
+    if (Date.now() - get().lastActiveAt > 1000) {
+      set({ lastActiveAt: Date.now() });
     }
   },
 }));

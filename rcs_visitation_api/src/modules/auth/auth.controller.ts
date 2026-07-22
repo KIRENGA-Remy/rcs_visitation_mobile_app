@@ -32,6 +32,18 @@ export class AuthController {
       sendSuccess(res, user);
     } catch (err) { next(err); }
   }
+
+  async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await authService.refresh(req.body.refreshToken);
+      sendSuccess(res, result, 'Token refreshed');
+    } catch (err: any) {
+      if (err.message.includes('Invalid or expired') || err.message.includes('suspended')) {
+        sendError(res, err.message, 401); return;
+      }
+      next(err);
+    }
+  }
 }
 
 export const authController = new AuthController();

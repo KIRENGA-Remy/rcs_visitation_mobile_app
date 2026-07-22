@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { hashPassword, comparePassword } from '../../shared/utils/bcrypt';
-import { signAccessToken, signRefreshToken } from '../../shared/utils/jwt';
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../shared/utils/jwt';
 import { RegisterDto, LoginDto } from './auth.schema';
 
 export class AuthService {
@@ -69,6 +69,24 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  async refresh(refreshToken: string) {
+    let payload: { userId: string };
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch {
+      throw new Error('Invalid or expired refresh token');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user) throw new Error('Invalid or expired refresh token');
+    if (user.status !== 'ACTIVE') throw new Error('Account is suspended or inactive');
+
+    const accessToken     = signAccessToken({ id: user.id, role: user.role, email: user.email });
+    const newRefreshToken = signRefreshToken(user.id); // rotate refresh token
+
+    return { accessToken, refreshToken: newRefreshToken };
   }
 
   async getMe(userId: string) {

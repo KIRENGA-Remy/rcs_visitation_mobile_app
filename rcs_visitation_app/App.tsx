@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusBar, Platform } from 'react-native';
+import { View, StatusBar, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider }       from 'react-native-safe-area-context';
 import { NavigationContainer }    from '@react-navigation/native';
@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import { RootNavigator }       from '@navigation/RootNavigator';
 import { OfflineBanner }       from '@components/common/OfflineBanner';
 import { usePushNotifications }from '@hooks/usePushNotifications';
+import { useAutoLogout }       from '@hooks/useAutoLogout';
 import { COLORS }              from '@constants';
 
 // ── React Query client — optimised for mobile ────────────────────────────
@@ -19,7 +20,7 @@ const queryClient = new QueryClient({
       staleTime:              30_000,
       gcTime:                 5 * 60 * 1000,
       refetchOnWindowFocus:   false,
-      refetchOnReconnect:     true,   // refetch when network comes back
+      refetchOnReconnect:     true,   
     },
     mutations: {
       retry: 0,
@@ -27,18 +28,18 @@ const queryClient = new QueryClient({
   },
 });
 
-// ── Toast config — styled with RCS theme ─────────────────────────────────
 const toastConfig = {
   success: ({ text1, text2 }: any) => null,
   error:   ({ text1, text2 }: any) => null,
   info:    ({ text1, text2 }: any) => null,
 };
 
-// ── Inner component so hooks can run inside providers ─────────────────────
 const AppInner: React.FC = () => {
-  usePushNotifications(); // register channels + listeners
+  usePushNotifications(); 
+  const { registerActivity } = useAutoLogout();
+
   return (
-    <>
+    <View style={{ flex: 1 }} onTouchStart={registerActivity}>
       <StatusBar
         barStyle="light-content"
         backgroundColor={COLORS.primaryDark}
@@ -51,7 +52,7 @@ const AppInner: React.FC = () => {
         topOffset={Platform.OS === 'android' ? 40 : 56}
         visibilityTime={3500}
       />
-    </>
+    </View>
   );
 };
 
