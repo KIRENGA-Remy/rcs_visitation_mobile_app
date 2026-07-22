@@ -9,10 +9,44 @@ const client: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 });
 
-// ── Request interceptor — attach JWT from SecureStore ────────────────────
+const refreshClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+});
+
+let refreshPromise: Promise<string | null> | null = null;
+
+const performTokenRefresh = async (): Promise<string | null> => {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const storedRefreshToken = await getSecure(STORAGE_KEYS.REFRESH_TOKEN);
+      if (!storedRefreshToken) return null;
+
+      const { data } = await refreshClient.post('/auth/refresh', {
+        refreshToken: storedRefreshToken,
+      });
+      const { accessToken, refreshToken: rotatedRefreshToken } = data.data;
+
+      const { useAuthStore } = await import('@stores/authStore');
+      await useAuthStore.getState().setTokens(accessToken, rotatedRefreshToken);
+
+      return accessToken as string;
+    } catch {
+      return null; 
+    } finally {
+      refreshPromise = null; 
+    }
+  })();
+
+  return refreshPromise;
+};
+
+
 client.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    // Check connectivity before sending
     const net = await NetInfo.fetch();
     if (!net.isConnected) {
       return Promise.reject(
@@ -29,7 +63,6 @@ client.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ── Response interceptor — friendly errors, auto-logout on 401 ───────────
 client.interceptors.response.use(
   (response) => response,
   async (error: AxiosError & { isOffline?: boolean }) => {
@@ -38,7 +71,6 @@ client.interceptors.response.use(
     }
 
     if (!error.response) {
-      // Network error / timeout
       if (error.code === 'ECONNABORTED') {
         return Promise.reject(new Error('Request timed out. The server is taking too long to respond.'));
       }
@@ -46,11 +78,27 @@ client.interceptors.response.use(
     }
 
     const status = error.response.status;
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retriedAfterRefresh?: boolean }) | undefined;
+    const isRefreshCall = originalRequest?.url?.includes('/auth/refresh');
+
+    if (status === 401 && originalRequest && !originalRequest._retriedAfterRefresh && !isRefreshCall) {
+      const newAccessToken = await performTokenRefresh();
+
+      if (newAccessToken) {
+        originalRequest._retriedAfterRefresh = true;
+        originalRequest.headers = originalRequest.headers ?? {};
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return client(originalRequest);
+      }
+
+      await clearAllSecure([STORAGE_KEYS.ACCESS_TOKEN, STORAGE_KEYS.REFRESH_TOKEN]);
+      const { useAuthStore } = await import('@stores/authStore');
+      useAuthStore.getState().clearAuth();
+      return Promise.reject(new Error('Your session has expired. Please sign in again.'));
+    }
 
     if (status === 401) {
-      // Token expired — clear credentials so RootNavigator re-routes to Auth
       await clearAllSecure([STORAGE_KEYS.ACCESS_TOKEN, STORAGE_KEYS.REFRESH_TOKEN]);
-      // Dynamically import to avoid circular deps
       const { useAuthStore } = await import('@stores/authStore');
       useAuthStore.getState().clearAuth();
       return Promise.reject(new Error('Your session has expired. Please sign in again.'));
@@ -78,7 +126,6 @@ client.interceptors.response.use(
       return Promise.reject(new Error('Server error. Our team has been notified. Please try again shortly.'));
     }
 
-    // Pass through any specific backend message
     const backendMsg = (error.response.data as any)?.message;
     return Promise.reject(new Error(backendMsg ?? 'Something went wrong. Please try again.'));
   }
