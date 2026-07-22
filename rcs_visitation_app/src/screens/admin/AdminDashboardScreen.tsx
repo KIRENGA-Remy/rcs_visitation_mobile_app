@@ -1,23 +1,26 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StatusBar, TouchableOpacity, RefreshControl
+  View, Text, ScrollView, StatusBar, TouchableOpacity, RefreshControl, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 import { StatCardSkeleton } from '@components/common/Skeleton';
 import { Avatar } from '@components/common/Avatar';
 import { COLORS, QUERY_KEYS } from '@constants';
 import { useAuthStore } from '@stores/authStore';
 import { useNotificationStore } from '@stores/notificationStore';
 import { useTranslation } from '@hooks/useTranslation';
+import { useLogout } from '@hooks/useAuth';
 import { reportsApi } from '@api/reports';
 
 export const AdminDashboardScreen: React.FC = () => {
   const navigation      = useNavigation<any>();
   const { user }        = useAuthStore();
   const { unreadCount } = useNotificationStore();
+  const { mutate: logout } = useLogout();
   const { t }           = useTranslation();
 
   const { data: stats, isLoading, refetch, isRefetching } = useQuery({
@@ -46,6 +49,19 @@ export const AdminDashboardScreen: React.FC = () => {
 
   const handleNavPress = useCallback((screen: string) => navigation.navigate(screen), [navigation]);
 
+  const handleLogout = useCallback(() => {
+    Alert.alert(t('sign_out'), t('sign_out_confirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('sign_out'),
+        style: 'destructive',
+        onPress: () => logout(undefined, {
+          onSuccess: () => Toast.show({ type: 'success', text1: t('success') }),
+        }),
+      },
+    ]);
+  }, [t, logout]);
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.surface }}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
@@ -70,26 +86,36 @@ export const AdminDashboardScreen: React.FC = () => {
               </View>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={() => handleNavPress('Notifications')}
-            style={{ position: 'relative', padding: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('notifications')}
-          >
-            <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
-            {unreadCount > 0 && (
-              <View style={{
-                position: 'absolute', top: 4, right: 4,
-                width: 18, height: 18, borderRadius: 9,
-                backgroundColor: COLORS.accent,
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Text style={{ color: COLORS.black, fontSize: 10, fontWeight: '800' }}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <TouchableOpacity
+              onPress={() => handleNavPress('Notifications')}
+              style={{ position: 'relative', padding: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('notifications')}
+            >
+              <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute', top: 4, right: 4,
+                  width: 18, height: 18, borderRadius: 9,
+                  backgroundColor: COLORS.accent,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ color: COLORS.black, fontSize: 10, fontWeight: '800' }}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{ padding: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('sign_out')}
+            >
+              <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
