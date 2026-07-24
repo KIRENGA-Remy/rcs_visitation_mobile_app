@@ -1,12 +1,11 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, RefreshControl, StatusBar, Alert
+  View, Text, ScrollView, TouchableOpacity, RefreshControl, StatusBar
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import Toast from 'react-native-toast-message';
 import { Avatar } from '@components/common/Avatar';
 import { VisitRequestCard } from '@components/common/VisitRequestCard';
 import { EmptyState } from '@components/common/EmptyState';
@@ -15,7 +14,6 @@ import { COLORS, QUERY_KEYS } from '@constants';
 import { useAuthStore } from '@stores/authStore';
 import { useNotificationStore } from '@stores/notificationStore';
 import { useTranslation } from '@hooks/useTranslation';
-import { useLogout } from '@hooks/useAuth';
 import { visitRequestsApi } from '@api/visitRequests';
 import { formatDate } from '@utils';
 import { scheduleVisitReminder } from '@hooks/usePushNotifications';
@@ -25,20 +23,6 @@ export const VisitorHomeScreen: React.FC = () => {
   const { user, language } = useAuthStore();
   const { unreadCount }    = useNotificationStore();
   const { t }              = useTranslation();
-  const { mutate: logout } = useLogout();
-
-  const handleLogout = useCallback(() => {
-    Alert.alert(t('sign_out'), t('sign_out_confirm'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('sign_out'),
-        style: 'destructive',
-        onPress: () => logout(undefined, {
-          onSuccess: () => Toast.show({ type: 'success', text1: t('success') }),
-        }),
-      },
-    ]);
-  }, [t, logout]);
 
   const { data: requestsData, isLoading, refetch, isRefetching } = useQuery({
     queryKey: [...QUERY_KEYS.MY_REQUESTS, { limit: 5 }],
@@ -59,9 +43,10 @@ export const VisitorHomeScreen: React.FC = () => {
   ], [requestsData?.data, language]);
 
   const quickActions = useMemo(() => [
-    { label: t('book_visit'), icon: 'add-circle', color: COLORS.primary, screen: 'BookVisit' },
-    { label: t('my_requests'),icon: 'list',       color: COLORS.info,    screen: 'MyRequests' },
-    { label: t('profile'),    icon: 'person',     color: COLORS.accent,  screen: 'Profile' },
+    { label: t('book_visit'),   icon: 'add-circle',  color: COLORS.primary, screen: 'BookVisit' },
+    { label: t('my_requests'),  icon: 'list',         color: COLORS.info,    screen: 'MyRequests' },
+    { label: t('my_contacts'),  icon: 'people',        color: COLORS.accent,  screen: 'Contacts' },
+    { label: t('profile'),      icon: 'person',       color: COLORS.accent,  screen: 'Profile' },
   ], [language]);
 
   const handleNavPress = useCallback((screen: string) => navigation.navigate(screen), [navigation]);
@@ -85,38 +70,26 @@ export const VisitorHomeScreen: React.FC = () => {
               </Text>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <TouchableOpacity
-              onPress={() => handleNavPress('Notifications')}
-              style={{ position: 'relative', padding: 8 }}
-              accessibilityLabel={`${t('notifications')} ${unreadCount > 0 ? `${unreadCount} unread` : ''}`}
-              accessibilityRole="button"
-            >
-              <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
-              {unreadCount > 0 && (
-                <View style={{
-                  position: 'absolute', top: 4, right: 4,
-                  width: 18, height: 18, borderRadius: 9,
-                  backgroundColor: COLORS.accent,
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Text style={{ color: COLORS.black, fontSize: 10, fontWeight: '800' }}>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            {/* Logout is reachable directly from the dashboard, not just
-               buried inside Profile — a quick, deliberate way out at all times. */}
-            <TouchableOpacity
-              onPress={handleLogout}
-              style={{ padding: 8 }}
-              accessibilityLabel={t('sign_out')}
-              accessibilityRole="button"
-            >
-              <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={() => handleNavPress('Notifications')}
+            style={{ position: 'relative', padding: 8 }}
+            accessibilityLabel={`${t('notifications')} ${unreadCount > 0 ? `${unreadCount} unread` : ''}`}
+            accessibilityRole="button"
+          >
+            <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
+            {unreadCount > 0 && (
+              <View style={{
+                position: 'absolute', top: 4, right: 4,
+                width: 18, height: 18, borderRadius: 9,
+                backgroundColor: COLORS.accent,
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ color: COLORS.black, fontSize: 10, fontWeight: '800' }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Stats */}
