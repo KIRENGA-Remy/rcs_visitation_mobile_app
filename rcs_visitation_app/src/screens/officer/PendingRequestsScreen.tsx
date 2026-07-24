@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, StatusBar, RefreshControl, TouchableOpacity, TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { VisitRequestCard } from '@components/common/VisitRequestCard';
 import { LoadingScreen } from '@components/common/LoadingScreen';
@@ -11,8 +11,11 @@ import { EmptyState } from '@components/common/EmptyState';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS } from '@constants';
 import { visitRequestsApi } from '@api/visitRequests';
+import type { OfficerStackParamList } from '@navigation/types';
 
-const STATUS_TABS = [
+type StatusTab = 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED';
+
+const STATUS_TABS: { label: string; value: StatusTab }[] = [
   { label: 'Pending',   value: 'PENDING' },
   { label: 'Approved',  value: 'APPROVED' },
   { label: 'Today',     value: 'CHECKED_IN' },
@@ -21,7 +24,12 @@ const STATUS_TABS = [
 
 export const PendingRequestsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [activeTab, setActiveTab] = useState('PENDING');
+  // Optional deep-link param (e.g. from the Dashboard's "Check Out" quick
+  // action, which needs to land directly on the CHECKED_IN tab rather than
+  // jumping straight into CheckOutScreen with no visitRequestId selected —
+  // see OfficerDashboardScreen.tsx for the crash this was causing).
+  const route = useRoute<RouteProp<OfficerStackParamList, 'PendingRequests'>>();
+  const [activeTab, setActiveTab] = useState<StatusTab>(route.params?.initialTab ?? 'PENDING');
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['visit-requests', 'prison-all', activeTab],
