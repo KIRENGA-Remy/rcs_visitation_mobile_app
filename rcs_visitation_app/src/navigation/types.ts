@@ -21,7 +21,7 @@ export type VisitorStackParamList = {
 
 export type OfficerStackParamList = {
   OfficerDashboard:   undefined;
-  PendingRequests:    undefined;
+  PendingRequests:    { initialTab?: 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED' } | undefined;
   ReviewRequest:      { id: string };
   ScanQR:             undefined;
   CheckIn:            { visitRequestId: string };
