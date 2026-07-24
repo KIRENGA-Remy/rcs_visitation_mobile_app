@@ -88,9 +88,15 @@ export const BookVisitScreen: React.FC<Props> = ({ navigation }) => {
               <Ionicons name="warning-outline" size={22} color={COLORS.warning} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: '700', color: '#92400E', fontSize: 14, marginBottom: 4 }}>No Approved Prisoners</Text>
-                <Text style={{ color: '#92400E', fontSize: 13, lineHeight: 18 }}>
-                  You must be approved to visit a prisoner first. Contact the prison administration to get approval.
+                <Text style={{ color: '#92400E', fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                  You must be approved to visit a prisoner first. Request approval below — a prison officer or admin will review it.
                 </Text>
+                <Button
+                  title="Request to Visit Someone"
+                  onPress={() => navigation.navigate('RequestVisit')}
+                  size="sm"
+                  leftIcon={<Ionicons name="person-add-outline" size={16} color={COLORS.white} />}
+                />
               </View>
             </View>
           </Card>

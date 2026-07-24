@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, FlatList, StatusBar, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StatusBar, RefreshControl, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -69,6 +69,16 @@ export const ContactsScreen: React.FC = () => {
         title={t('my_contacts')}
         subtitle={`${contacts.length} ${t('approved').toLowerCase()}`}
         onBack={() => navigation.goBack()}
+        rightElement={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('RequestVisit')}
+            style={{ padding: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('request_visit')}
+          >
+            <Ionicons name="add" size={26} color={COLORS.white} />
+          </TouchableOpacity>
+        }
       />
 
       {isLoading ? (
@@ -89,6 +99,8 @@ export const ContactsScreen: React.FC = () => {
               icon="people-outline"
               title={t('no_contacts')}
               description={t('no_contacts_desc')}
+              actionLabel={t('request_visit')}
+              onAction={() => navigation.navigate('RequestVisit')}
             />
           }
         />
