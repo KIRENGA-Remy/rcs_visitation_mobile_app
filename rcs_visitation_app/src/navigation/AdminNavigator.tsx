@@ -6,6 +6,7 @@ import { PrisonersScreen }      from '@screens/admin/PrisonersScreen';
 import { SchedulesScreen }      from '@screens/admin/SchedulesScreen';
 import { ReportsScreen }        from '@screens/admin/ReportsScreen';
 import { VisitLogsScreen }      from '@screens/officer/VisitLogsScreen';
+import { ContactRequestsScreen }from '@screens/officer/ContactRequestsScreen';
 import { NotificationsScreen }  from '@screens/shared/NotificationsScreen';
 import { ProfileScreen }        from '@screens/shared/ProfileScreen';
 import type { AdminStackParamList } from './types';
@@ -20,6 +21,7 @@ export const AdminNavigator: React.FC = () => (
     <Stack.Screen name="Schedules"      component={SchedulesScreen} />
     <Stack.Screen name="Reports"        component={ReportsScreen} />
     <Stack.Screen name="AdminLogs"      component={VisitLogsScreen} />
+    <Stack.Screen name="ContactRequests" component={ContactRequestsScreen} />
     <Stack.Screen name="Notifications"  component={NotificationsScreen} />
     <Stack.Screen name="Profile"        component={ProfileScreen} />
   </Stack.Navigator>

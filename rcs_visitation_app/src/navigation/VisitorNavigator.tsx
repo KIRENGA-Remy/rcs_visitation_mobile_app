@@ -8,6 +8,7 @@ import { MyRequestsScreen }      from '@screens/visitor/MyRequestsScreen';
 import { RequestDetailScreen }   from '@screens/visitor/RequestDetailScreen';
 import { BookVisitScreen }       from '@screens/visitor/BookVisitScreen';
 import { ContactsScreen }        from '@screens/visitor/ContactsScreen';
+import { RequestVisitScreen }    from '@screens/visitor/RequestVisitScreen';
 import { NotificationsScreen }   from '@screens/shared/NotificationsScreen';
 import { ProfileScreen }         from '@screens/shared/ProfileScreen';
 import { COLORS } from '@constants';
@@ -63,6 +64,7 @@ export const VisitorNavigator: React.FC = () => (
     <Stack.Screen name="VisitorTabs"    component={VisitorTabs} />
     <Stack.Screen name="BookVisit"      component={BookVisitScreen} />
     <Stack.Screen name="Contacts"       component={ContactsScreen} />
+    <Stack.Screen name="RequestVisit"   component={RequestVisitScreen} />
     <Stack.Screen name="RequestDetail"  component={RequestDetailScreen} />
     <Stack.Screen name="Notifications"  component={NotificationsScreen} />
     <Stack.Screen name="Profile"        component={ProfileScreen} />

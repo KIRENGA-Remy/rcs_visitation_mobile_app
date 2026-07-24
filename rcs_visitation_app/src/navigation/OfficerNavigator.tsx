@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OfficerDashboardScreen } from '@screens/officer/OfficerDashboardScreen';
 import { PendingRequestsScreen }  from '@screens/officer/PendingRequestsScreen';
+import { ContactRequestsScreen }  from '@screens/officer/ContactRequestsScreen';
 import { ReviewRequestScreen }    from '@screens/officer/ReviewRequestScreen';
 import { ScanQRScreen }           from '@screens/officer/ScanQRScreen';
 import { CheckInScreen }          from '@screens/officer/CheckInScreen';
@@ -17,6 +18,7 @@ export const OfficerNavigator: React.FC = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="OfficerDashboard" component={OfficerDashboardScreen} />
     <Stack.Screen name="PendingRequests"  component={PendingRequestsScreen} />
+    <Stack.Screen name="ContactRequests"  component={ContactRequestsScreen} />
     <Stack.Screen name="ReviewRequest"    component={ReviewRequestScreen} />
     <Stack.Screen name="ScanQR"           component={ScanQRScreen} />
     <Stack.Screen name="CheckIn"          component={CheckInScreen} />
