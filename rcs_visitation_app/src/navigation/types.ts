@@ -17,11 +17,15 @@ export type VisitorStackParamList = {
   Notifications:  undefined;
   Profile:        undefined;
   Contacts:       undefined;
+  Help:           undefined;
+  About:          undefined;
+  RequestVisit:   undefined;
 };
 
 export type OfficerStackParamList = {
   OfficerDashboard:   undefined;
   PendingRequests:    { initialTab?: 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED' } | undefined;
+  ContactRequests:    undefined;
   ReviewRequest:      { id: string };
   ScanQR:             undefined;
   CheckIn:            { visitRequestId: string };
@@ -29,6 +33,8 @@ export type OfficerStackParamList = {
   VisitLogs:          undefined;
   Notifications:      undefined;
   Profile:            undefined;
+  Help:               undefined;
+  About:              undefined;
 };
 
 export type AdminStackParamList = {
@@ -38,8 +44,11 @@ export type AdminStackParamList = {
   Schedules:      undefined;
   Reports:        undefined;
   AdminLogs:      undefined;
+  ContactRequests:undefined;
   Notifications:  undefined;
   Profile:        undefined;
+  Help:           undefined;
+  About:          undefined;
 };
 
 export type RootStackParamList = {

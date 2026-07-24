@@ -11,6 +11,8 @@ import { ContactsScreen }        from '@screens/visitor/ContactsScreen';
 import { RequestVisitScreen }    from '@screens/visitor/RequestVisitScreen';
 import { NotificationsScreen }   from '@screens/shared/NotificationsScreen';
 import { ProfileScreen }         from '@screens/shared/ProfileScreen';
+import { HelpSupportScreen }     from '@screens/shared/HelpSupportScreen';
+import { AboutScreen }           from '@screens/shared/AboutScreen';
 import { COLORS } from '@constants';
 import { useNotificationStore }  from '@stores/notificationStore';
 import type { VisitorTabParamList, VisitorStackParamList } from './types';
@@ -68,5 +70,7 @@ export const VisitorNavigator: React.FC = () => (
     <Stack.Screen name="RequestDetail"  component={RequestDetailScreen} />
     <Stack.Screen name="Notifications"  component={NotificationsScreen} />
     <Stack.Screen name="Profile"        component={ProfileScreen} />
+    <Stack.Screen name="Help"           component={HelpSupportScreen} />
+    <Stack.Screen name="About"          component={AboutScreen} />
   </Stack.Navigator>
 );

@@ -10,6 +10,8 @@ import { CheckOutScreen }         from '@screens/officer/CheckOutScreen';
 import { VisitLogsScreen }        from '@screens/officer/VisitLogsScreen';
 import { NotificationsScreen }    from '@screens/shared/NotificationsScreen';
 import { ProfileScreen }          from '@screens/shared/ProfileScreen';
+import { HelpSupportScreen }      from '@screens/shared/HelpSupportScreen';
+import { AboutScreen }            from '@screens/shared/AboutScreen';
 import type { OfficerStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<OfficerStackParamList>();
@@ -26,5 +28,7 @@ export const OfficerNavigator: React.FC = () => (
     <Stack.Screen name="VisitLogs"        component={VisitLogsScreen} />
     <Stack.Screen name="Notifications"    component={NotificationsScreen} />
     <Stack.Screen name="Profile"          component={ProfileScreen} />
+    <Stack.Screen name="Help"             component={HelpSupportScreen} />
+    <Stack.Screen name="About"            component={AboutScreen} />
   </Stack.Navigator>
 );

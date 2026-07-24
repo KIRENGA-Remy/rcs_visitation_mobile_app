@@ -9,6 +9,8 @@ import { VisitLogsScreen }      from '@screens/officer/VisitLogsScreen';
 import { ContactRequestsScreen }from '@screens/officer/ContactRequestsScreen';
 import { NotificationsScreen }  from '@screens/shared/NotificationsScreen';
 import { ProfileScreen }        from '@screens/shared/ProfileScreen';
+import { HelpSupportScreen }    from '@screens/shared/HelpSupportScreen';
+import { AboutScreen }          from '@screens/shared/AboutScreen';
 import type { AdminStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
@@ -24,5 +26,7 @@ export const AdminNavigator: React.FC = () => (
     <Stack.Screen name="ContactRequests" component={ContactRequestsScreen} />
     <Stack.Screen name="Notifications"  component={NotificationsScreen} />
     <Stack.Screen name="Profile"        component={ProfileScreen} />
+    <Stack.Screen name="Help"           component={HelpSupportScreen} />
+    <Stack.Screen name="About"          component={AboutScreen} />
   </Stack.Navigator>
 );
