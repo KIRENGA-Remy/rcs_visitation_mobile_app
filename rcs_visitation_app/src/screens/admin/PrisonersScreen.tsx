@@ -89,7 +89,7 @@ export const PrisonersScreen: React.FC = () => {
           renderItem={({ item }) => (
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => {}}
+              onPress={() => navigation.navigate('PrisonerDetail', { id: item.id })}
               style={{
                 backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
                 marginBottom: 10,
@@ -141,6 +141,22 @@ export const PrisonersScreen: React.FC = () => {
           )}
         />
       )}
+
+      {/* FAB — register a new prisoner */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('PrisonerForm', {})}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Register new prisoner"
+        style={{
+          position: 'absolute', bottom: 24, right: 20,
+          width: 56, height: 56, borderRadius: 28,
+          backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+          shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
+        }}
+      >
+        <Ionicons name="add" size={28} color={COLORS.white} />
+      </TouchableOpacity>
     </View>
   );
 };
