@@ -16,6 +16,7 @@ export type VisitorStackParamList = {
   RequestDetail:  { id: string };
   Notifications:  undefined;
   Profile:        undefined;
+  Contacts:       undefined;
 };
 
 export type OfficerStackParamList = {
