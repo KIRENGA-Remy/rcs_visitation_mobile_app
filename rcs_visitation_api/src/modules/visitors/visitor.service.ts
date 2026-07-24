@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { UpdateVisitorProfileDto, BanVisitorDto, LinkPrisonerDto, RequestContactDto, RejectContactRequestDto } from './visitor.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
+import { notificationService } from '../notifications/notification.service';
 
 const VISITOR_SELECT = {
   id: true, district: true, sector: true, cell: true,
@@ -122,8 +123,6 @@ export class VisitorService {
   async requestContact(userId: string, dto: RequestContactDto) {
     const profile = await prisma.visitorProfile.findUniqueOrThrow({ where: { userId } });
 
-    // Confirm the prisoner exists and is actually visitable before
-    // accepting the request, rather than only failing at review time.
     const prisoner = await prisma.prisoner.findUniqueOrThrow({ where: { id: dto.prisonerId } });
     if (prisoner.status !== 'ACTIVE') {
       throw new Error('This prisoner is not currently available for visits');
@@ -172,17 +171,49 @@ export class VisitorService {
   }
 
   async approveContactRequest(id: string, approvedByUserId: string) {
-    return prisma.approvedVisitorPrisoner.update({
+    const updated = await prisma.approvedVisitorPrisoner.update({
       where: { id },
       data:  { isActive: true, approvedByUserId, notes: null },
+      include: {
+        visitorProfile: { select: { userId: true } },
+        prisoner:        { select: { firstName: true, lastName: true } },
+      },
     });
+    try {
+      await notificationService.send({
+        userId: updated.visitorProfile.userId,
+        type:   'SYSTEM_ALERT',
+        title:  'Contact Request Approved',
+        body:   `You can now book visits to ${updated.prisoner.firstName} ${updated.prisoner.lastName}.`,
+      });
+    } catch {
+      // Non-fatal
+    }
+    return updated;
   }
 
   async rejectContactRequest(id: string, dto: RejectContactRequestDto) {
-    return prisma.approvedVisitorPrisoner.update({
+    const updated = await prisma.approvedVisitorPrisoner.update({
       where: { id },
+      // Stays isActive:false / approvedByUserId:null (still "not approved"),
+      // but the rejection reason is now visible to the visitor via notes.
       data:  { notes: dto.reason },
+      include: {
+        visitorProfile: { select: { userId: true } },
+        prisoner:        { select: { firstName: true, lastName: true } },
+      },
     });
+    try {
+      await notificationService.send({
+        userId: updated.visitorProfile.userId,
+        type:   'SYSTEM_ALERT',
+        title:  'Contact Request Rejected',
+        body:   `Your request to visit ${updated.prisoner.firstName} ${updated.prisoner.lastName} was rejected: ${dto.reason}`,
+      });
+    } catch {
+      // Non-fatal
+    }
+    return updated;
   }
 }
 
