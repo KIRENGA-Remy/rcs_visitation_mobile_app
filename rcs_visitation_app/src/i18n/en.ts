@@ -117,6 +117,7 @@ export const en = {
   pending:            'Pending',
   check_out:          'Check Out',
   visit_logs:         'Visit Logs',
+  contact_requests:   'Contact Requests',
   check_in_visitor:   'Check In Visitor',
   confirm_check_in:   'Confirm Check-In',
   complete_check_out: 'Complete Check-Out',
