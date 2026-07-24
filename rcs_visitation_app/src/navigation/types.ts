@@ -49,6 +49,8 @@ export type AdminStackParamList = {
   AdminDashboard: undefined;
   Users:          undefined;
   Prisoners:      undefined;
+  PrisonerDetail: { id: string };
+  PrisonerForm:   { id?: string } | undefined;
   Schedules:      undefined;
   Reports:        undefined;
   AdminLogs:      undefined;

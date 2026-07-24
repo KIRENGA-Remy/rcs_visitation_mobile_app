@@ -3,6 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AdminDashboardScreen } from '@screens/admin/AdminDashboardScreen';
 import { UsersScreen }          from '@screens/admin/UsersScreen';
 import { PrisonersScreen }      from '@screens/admin/PrisonersScreen';
+import { PrisonerDetailScreen } from '@screens/admin/PrisonerDetailScreen';
+import { PrisonerFormScreen }   from '@screens/admin/PrisonerFormScreen';
 import { SchedulesScreen }      from '@screens/admin/SchedulesScreen';
 import { ReportsScreen }        from '@screens/admin/ReportsScreen';
 import { VisitLogsScreen }      from '@screens/officer/VisitLogsScreen';
@@ -24,6 +26,8 @@ export const AdminNavigator: React.FC = () => (
     <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
     <Stack.Screen name="Users"          component={UsersScreen} />
     <Stack.Screen name="Prisoners"      component={PrisonersScreen} />
+    <Stack.Screen name="PrisonerDetail" component={PrisonerDetailScreen} />
+    <Stack.Screen name="PrisonerForm"   component={PrisonerFormScreen} />
     <Stack.Screen name="Schedules"      component={SchedulesScreen} />
     <Stack.Screen name="Reports"        component={ReportsScreen} />
     <Stack.Screen name="AdminLogs"      component={VisitLogsScreen} />
