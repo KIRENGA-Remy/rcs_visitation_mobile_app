@@ -20,6 +20,10 @@ export type VisitorStackParamList = {
   Help:           undefined;
   About:          undefined;
   RequestVisit:   undefined;
+  EditProfile:          undefined;
+  ChangePassword:       undefined;
+  NotificationSettings: undefined;
+  PrivacySecurity:      undefined;
 };
 
 export type OfficerStackParamList = {
@@ -35,6 +39,10 @@ export type OfficerStackParamList = {
   Profile:            undefined;
   Help:               undefined;
   About:              undefined;
+  EditProfile:          undefined;
+  ChangePassword:       undefined;
+  NotificationSettings: undefined;
+  PrivacySecurity:      undefined;
 };
 
 export type AdminStackParamList = {
@@ -49,6 +57,10 @@ export type AdminStackParamList = {
   Profile:        undefined;
   Help:           undefined;
   About:          undefined;
+  EditProfile:          undefined;
+  ChangePassword:       undefined;
+  NotificationSettings: undefined;
+  PrivacySecurity:      undefined;
 };
 
 export type RootStackParamList = {
