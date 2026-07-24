@@ -5,7 +5,7 @@
 import jwt from 'jsonwebtoken';
 import { UserRole } from '@prisma/client';
 
-const SECRET = process.env.JWT_SECRET ?? 'test-jwt-secret-myn-32-chars-long!!';
+const SECRET = process.env.JWT_SECRET ?? 'test-jwt-secret-min-32-chars-long!!';
 
 export const makeToken = (payload: { id: string; role: UserRole; email: string }): string =>
   jwt.sign(payload, SECRET, { expiresIn: '1h' });
