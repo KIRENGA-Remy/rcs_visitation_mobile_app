@@ -3,7 +3,11 @@ import type { UserAdmin, AuthUser, ApiResponse } from '@types';
 
 export const usersApi = {
   /** Self-service — add/update own National ID, gender, DOB, photo, or language preference. */
-  updateMe: async (body: { nationalId?: string; gender?: string; dateOfBirth?: string; profilePhoto?: string; preferredLang?: 'en' | 'rw' }): Promise<AuthUser> => {
+  updateMe: async (body: {
+    firstName?: string; lastName?: string; phone?: string;
+    nationalId?: string; gender?: string; dateOfBirth?: string;
+    profilePhoto?: string; preferredLang?: 'en' | 'rw';
+  }): Promise<AuthUser> => {
     const res = await client.patch<ApiResponse<AuthUser>>('/users/me', body);
     return res.data.data!;
   },
