@@ -43,10 +43,10 @@ export const ProfileScreen: React.FC = () => {
     ...(user?.role === 'VISITOR'
       ? [{ icon: 'people-outline', label: t('my_contacts'), onPress: () => navigation.navigate('Contacts') }]
       : []),
-    { icon: 'person-outline',            label: t('edit_profile'),   onPress: () => {} },
-    { icon: 'lock-closed-outline',       label: t('change_password'),onPress: () => {} },
-    { icon: 'notifications-outline',     label: t('notif_settings'), onPress: () => {} },
-    { icon: 'shield-checkmark-outline',  label: t('privacy'),        onPress: () => {} },
+    { icon: 'person-outline',            label: t('edit_profile'),   onPress: () => navigation.navigate('EditProfile') },
+    { icon: 'lock-closed-outline',       label: t('change_password'),onPress: () => navigation.navigate('ChangePassword') },
+    { icon: 'notifications-outline',     label: t('notif_settings'), onPress: () => navigation.navigate('NotificationSettings') },
+    { icon: 'shield-checkmark-outline',  label: t('privacy'),        onPress: () => navigation.navigate('PrivacySecurity') },
     { icon: 'help-circle-outline',       label: t('help'),           onPress: () => navigation.navigate('Help') },
     { icon: 'information-circle-outline',label: t('about'),          onPress: () => navigation.navigate('About') },
   ];
