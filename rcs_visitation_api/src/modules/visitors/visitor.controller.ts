@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { visitorService } from './visitor.service';
-import { sendSuccess } from '../../shared/utils/apiResponse';
+import { sendSuccess, sendError } from '../../shared/utils/apiResponse';
 import { AuthRequest } from '../../shared/types';
 
 export class VisitorController {
@@ -51,6 +51,41 @@ export class VisitorController {
       const { requests, pagination } = await visitorService.getVisitHistory(req.params.id, req.query as any);
       sendSuccess(res, requests, 'Visit history retrieved', 200, pagination);
     } catch (err) { next(err); }
+  }
+
+  // ── Visitor self-service contact requests ────────────────────────────────
+  async requestContact(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await visitorService.requestContact(req.user!.id, req.body);
+      sendSuccess(res, result, 'Contact request submitted for review', 201);
+    } catch (err: any) {
+      if (err.message?.includes('not currently available')) {
+        sendError(res, err.message, 409); return;
+      }
+      next(err);
+    }
+  }
+
+  async getMyContactRequests(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await visitorService.getMyContactRequests(req.user!.id)); }
+    catch (err) { next(err); }
+  }
+
+  async getPendingContactRequests(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { requests, pagination } = await visitorService.getPendingContactRequests(req.query as any);
+      sendSuccess(res, requests, 'Pending contact requests retrieved', 200, pagination);
+    } catch (err) { next(err); }
+  }
+
+  async approveContactRequest(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await visitorService.approveContactRequest(req.params.id, req.user!.id), 'Contact request approved'); }
+    catch (err) { next(err); }
+  }
+
+  async rejectContactRequest(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await visitorService.rejectContactRequest(req.params.id, req.body), 'Contact request rejected'); }
+    catch (err) { next(err); }
   }
 }
 

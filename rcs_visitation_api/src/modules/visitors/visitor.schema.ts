@@ -20,6 +20,18 @@ export const linkPrisonerSchema = z.object({
   notes:        z.string().max(300).optional(),
 });
 
+export const requestContactSchema = z.object({
+  prisonerId:   z.string().uuid(),
+  relationship: z.string().min(2).max(50),
+  notes:        z.string().max(300).optional(),
+});
+
+export const rejectContactRequestSchema = z.object({
+  reason: z.string().min(2).max(300),
+});
+
 export type UpdateVisitorProfileDto = z.infer<typeof updateVisitorProfileSchema>;
 export type BanVisitorDto           = z.infer<typeof banVisitorSchema>;
 export type LinkPrisonerDto         = z.infer<typeof linkPrisonerSchema>;
+export type RequestContactDto       = z.infer<typeof requestContactSchema>;
+export type RejectContactRequestDto = z.infer<typeof rejectContactRequestSchema>;

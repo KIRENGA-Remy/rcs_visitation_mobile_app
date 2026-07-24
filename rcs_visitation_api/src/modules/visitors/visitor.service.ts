@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { UpdateVisitorProfileDto, BanVisitorDto, LinkPrisonerDto } from './visitor.schema';
+import { UpdateVisitorProfileDto, BanVisitorDto, LinkPrisonerDto, RequestContactDto, RejectContactRequestDto } from './visitor.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
 
@@ -117,6 +117,72 @@ export class VisitorService {
       prisma.visitRequest.count({ where: { visitorProfileId } }),
     ]);
     return { requests, pagination: buildPagination(page, limit, total) };
+  }
+
+  async requestContact(userId: string, dto: RequestContactDto) {
+    const profile = await prisma.visitorProfile.findUniqueOrThrow({ where: { userId } });
+
+    // Confirm the prisoner exists and is actually visitable before
+    // accepting the request, rather than only failing at review time.
+    const prisoner = await prisma.prisoner.findUniqueOrThrow({ where: { id: dto.prisonerId } });
+    if (prisoner.status !== 'ACTIVE') {
+      throw new Error('This prisoner is not currently available for visits');
+    }
+
+    return prisma.approvedVisitorPrisoner.upsert({
+      where: { visitorProfileId_prisonerId: { visitorProfileId: profile.id, prisonerId: dto.prisonerId } },
+      // Resubmitting after a rejection: reopen as pending again.
+      update: { isActive: false, approvedByUserId: null, relationship: dto.relationship, notes: dto.notes ?? null },
+      create: {
+        visitorProfileId: profile.id,
+        prisonerId:        dto.prisonerId,
+        relationship:      dto.relationship,
+        notes:             dto.notes,
+        isActive:          false,       // not yet approved
+        approvedByUserId:  null,        // null == pending review
+      },
+    });
+  }
+
+  async getMyContactRequests(userId: string) {
+    const profile = await prisma.visitorProfile.findUniqueOrThrow({ where: { userId } });
+    return prisma.approvedVisitorPrisoner.findMany({
+      where: { visitorProfileId: profile.id },
+      include: { prisoner: { select: { id: true, firstName: true, lastName: true, prisonerNumber: true, prison: { select: { name: true } } } } },
+      orderBy: { approvedAt: 'desc' },
+    });
+  }
+
+  /** Admin/Officer: contact requests awaiting review (approvedByUserId is null). */
+  async getPendingContactRequests(query: { page?: unknown; limit?: unknown }) {
+    const { page, limit, skip } = parsePagination(query);
+    const where = { isActive: false, approvedByUserId: null };
+    const [requests, total] = await Promise.all([
+      prisma.approvedVisitorPrisoner.findMany({
+        where, skip, take: limit,
+        include: {
+          visitorProfile: { include: { user: { select: { firstName: true, lastName: true, phone: true, nationalId: true } } } },
+          prisoner:        { select: { id: true, firstName: true, lastName: true, prisonerNumber: true, prison: { select: { name: true } } } },
+        },
+        orderBy: { approvedAt: 'asc' }, // oldest pending first
+      }),
+      prisma.approvedVisitorPrisoner.count({ where }),
+    ]);
+    return { requests, pagination: buildPagination(page, limit, total) };
+  }
+
+  async approveContactRequest(id: string, approvedByUserId: string) {
+    return prisma.approvedVisitorPrisoner.update({
+      where: { id },
+      data:  { isActive: true, approvedByUserId, notes: null },
+    });
+  }
+
+  async rejectContactRequest(id: string, dto: RejectContactRequestDto) {
+    return prisma.approvedVisitorPrisoner.update({
+      where: { id },
+      data:  { notes: dto.reason },
+    });
   }
 }
 
