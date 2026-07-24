@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { CreateVisitRequestDto, ProcessRequestDto, CancelRequestDto } from './visit-request.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
+import { notificationService } from '../notifications/notification.service';
 
 export class VisitRequestService {
 
@@ -72,7 +73,7 @@ export class VisitRequestService {
     if (request.status !== 'PENDING') throw new Error('Only pending requests can be processed');
 
     const isApproved = dto.action === 'APPROVE';
-    return prisma.visitRequest.update({
+    const updated = await prisma.visitRequest.update({
       where: { id },
       data: {
         status:              isApproved ? 'APPROVED' : 'REJECTED',
@@ -86,8 +87,26 @@ export class VisitRequestService {
       include: {
         prisoner: { select: { firstName: true, lastName: true } },
         schedule: { select: { startTime: true, endTime: true } },
+        visitorProfile: { select: { userId: true } },
       },
     });
+
+    try {
+      await notificationService.send({
+        userId: updated.visitorProfile.userId,
+        type:   isApproved ? 'VISIT_APPROVED' : 'VISIT_REJECTED',
+        title:  isApproved ? 'Visit Approved' : 'Visit Request Rejected',
+        body:   isApproved
+          ? `Your visit to ${updated.prisoner.firstName} ${updated.prisoner.lastName} has been approved. Your QR code is ready.`
+          : `Your visit request to ${updated.prisoner.firstName} ${updated.prisoner.lastName} was rejected${dto.rejectionReason ? `: ${dto.rejectionReason}` : '.'}`,
+        visitRequestId: updated.id,
+      });
+    } catch {
+      // Notification failure must never block the actual approve/reject
+      // decision from succeeding — the officer's action already committed.
+    }
+
+    return updated;
   }
 
   async cancel(id: string, dto: CancelRequestDto, userId: string) {
