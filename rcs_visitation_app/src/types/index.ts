@@ -145,12 +145,16 @@ export interface Prisoner {
   lastName: string;
   dateOfBirth?: string;
   gender: Gender;
+  nationalId?: string;
   cellBlock?: string;
   cellNumber?: string;
   status: PrisonerStatus;
   admissionDate: string;
+  expectedReleaseDate?: string;
+  offenseCategory?: string;
   visitingRestricted: boolean;
   restrictionReason?: string;
+  releaseNotes?: string;
   totalVisitsReceived: number;
   prison: { name: string; code: string; district: string };
 }
