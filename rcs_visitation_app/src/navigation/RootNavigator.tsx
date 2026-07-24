@@ -36,23 +36,17 @@ export const RootNavigator: React.FC = () => {
 
   if (!isHydrated) return <SplashScreen />;
 
-  // Determine which navigator to show based on role
-  const getInitialRoute = (): keyof RootStackParamList => {
-    if (!user) return 'Auth';
-    if (user.role === 'ADMIN')          return 'Admin';
-    if (user.role === 'PRISON_OFFICER') return 'Officer';
-    return 'Visitor';
-  };
-
   return (
-    <Stack.Navigator
-      initialRouteName={getInitialRoute()}
-      screenOptions={{ headerShown: false, animation: 'fade' }}
-    >
-      <Stack.Screen name="Auth"    component={AuthNavigator} />
-      <Stack.Screen name="Visitor" component={VisitorNavigator} />
-      <Stack.Screen name="Officer" component={OfficerNavigator} />
-      <Stack.Screen name="Admin"   component={AdminNavigator} />
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+      {!user ? (
+        <Stack.Screen name="Auth" component={AuthNavigator} />
+      ) : user.role === 'ADMIN' ? (
+        <Stack.Screen name="Admin" component={AdminNavigator} />
+      ) : user.role === 'PRISON_OFFICER' ? (
+        <Stack.Screen name="Officer" component={OfficerNavigator} />
+      ) : (
+        <Stack.Screen name="Visitor" component={VisitorNavigator} />
+      )}
     </Stack.Navigator>
   );
 };
