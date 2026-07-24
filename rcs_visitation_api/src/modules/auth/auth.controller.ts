@@ -33,14 +33,12 @@ export class AuthController {
     } catch (err) { next(err); }
   }
 
-  async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async changePassword(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await authService.refresh(req.body.refreshToken);
-      sendSuccess(res, result, 'Token refreshed');
+      await authService.changePassword(req.user!.id, req.body);
+      sendSuccess(res, { success: true }, 'Password changed successfully');
     } catch (err: any) {
-      if (err.message.includes('Invalid or expired') || err.message.includes('suspended')) {
-        sendError(res, err.message, 401); return;
-      }
+      if (err.message.includes('incorrect')) { sendError(res, err.message, 401); return; }
       next(err);
     }
   }

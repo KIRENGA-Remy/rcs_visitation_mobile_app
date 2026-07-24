@@ -1,7 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { hashPassword, comparePassword } from '../../shared/utils/bcrypt';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../shared/utils/jwt';
-import { RegisterDto, LoginDto } from './auth.schema';
+import { signAccessToken, signRefreshToken } from '../../shared/utils/jwt';
+import { RegisterDto, LoginDto, ChangePasswordDto } from './auth.schema';
 
 export class AuthService {
 
@@ -71,22 +71,14 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string) {
-    let payload: { userId: string };
-    try {
-      payload = verifyRefreshToken(refreshToken);
-    } catch {
-      throw new Error('Invalid or expired refresh token');
-    }
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const valid = await comparePassword(dto.currentPassword, user.passwordHash);
+    if (!valid) throw new Error('Current password is incorrect');
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-    if (!user) throw new Error('Invalid or expired refresh token');
-    if (user.status !== 'ACTIVE') throw new Error('Account is suspended or inactive');
-
-    const accessToken     = signAccessToken({ id: user.id, role: user.role, email: user.email });
-    const newRefreshToken = signRefreshToken(user.id); // rotate refresh token
-
-    return { accessToken, refreshToken: newRefreshToken };
+    const newHash = await hashPassword(dto.newPassword);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash: newHash } });
+    return { success: true };
   }
 
   async getMe(userId: string) {
