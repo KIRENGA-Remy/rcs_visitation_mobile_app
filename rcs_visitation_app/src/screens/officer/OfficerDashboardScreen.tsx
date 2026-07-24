@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StatusBar, TouchableOpacity, RefreshControl
+  View, Text, ScrollView, StatusBar, TouchableOpacity, RefreshControl, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 import { VisitRequestCard } from '@components/common/VisitRequestCard';
 import { VisitRequestSkeleton, StatCardSkeleton } from '@components/common/Skeleton';
 import { EmptyState } from '@components/common/EmptyState';
@@ -14,6 +15,7 @@ import { COLORS, QUERY_KEYS } from '@constants';
 import { useAuthStore } from '@stores/authStore';
 import { useNotificationStore } from '@stores/notificationStore';
 import { useTranslation } from '@hooks/useTranslation';
+import { useLogout } from '@hooks/useAuth';
 import { reportsApi } from '@api/reports';
 import { visitRequestsApi } from '@api/visitRequests';
 
@@ -22,6 +24,20 @@ export const OfficerDashboardScreen: React.FC = () => {
   const { user }      = useAuthStore();
   const { unreadCount } = useNotificationStore();
   const { t }         = useTranslation();
+  const { mutate: logout } = useLogout();
+
+  const handleLogout = useCallback(() => {
+    Alert.alert(t('sign_out'), t('sign_out_confirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('sign_out'),
+        style: 'destructive',
+        onPress: () => logout(undefined, {
+          onSuccess: () => Toast.show({ type: 'success', text1: t('success') }),
+        }),
+      },
+    ]);
+  }, [t, logout]);
 
   const { data: overview, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: QUERY_KEYS.OVERVIEW,
@@ -50,6 +66,7 @@ export const OfficerDashboardScreen: React.FC = () => {
     { label: t('check_out'),   icon: 'exit',           screen: 'PendingRequests', params: { initialTab: 'CHECKED_IN' }, color: COLORS.info },
     { label: 'Contact Requests', icon: 'person-add',  screen: 'ContactRequests', color: COLORS.accent },
     { label: t('visit_logs'), icon: 'document-text',  screen: 'VisitLogs',       color: COLORS.success },
+    { label: t('profile'),    icon: 'person-circle',  screen: 'Profile',         color: COLORS.textMuted },
   ], [t]);
 
   return (
@@ -61,7 +78,12 @@ export const OfficerDashboardScreen: React.FC = () => {
         style={{ paddingTop: 52, paddingBottom: 28, paddingHorizontal: 20 }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Profile')}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('profile')}
+          >
             <Avatar firstName={user?.firstName ?? ''} lastName={user?.lastName ?? ''} size={42} />
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>{t('officer_dashboard')}</Text>
@@ -69,27 +91,39 @@ export const OfficerDashboardScreen: React.FC = () => {
                 {user?.firstName} {user?.lastName}
               </Text>
             </View>
-          </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Notifications')}
-            style={{ position: 'relative', padding: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('notifications')}
-          >
-            <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
-            {unreadCount > 0 && (
-              <View style={{
-                position: 'absolute', top: 4, right: 4,
-                width: 18, height: 18, borderRadius: 9,
-                backgroundColor: COLORS.accent,
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Text style={{ color: COLORS.black, fontSize: 10, fontWeight: '800' }}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Notifications')}
+              style={{ position: 'relative', padding: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('notifications')}
+            >
+              <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute', top: 4, right: 4,
+                  width: 18, height: 18, borderRadius: 9,
+                  backgroundColor: COLORS.accent,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ color: COLORS.black, fontSize: 10, fontWeight: '800' }}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            {/* Officers handle sensitive records — logout must be a single,
+               always-visible tap from the dashboard, same as every other role. */}
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{ padding: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('sign_out')}
+            >
+              <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Stats grid */}
