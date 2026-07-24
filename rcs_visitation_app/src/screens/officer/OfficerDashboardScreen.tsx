@@ -47,13 +47,8 @@ export const OfficerDashboardScreen: React.FC = () => {
   const quickActions = useMemo(() => [
     { label: t('scan_qr'),     icon: 'qr-code',       screen: 'ScanQR',          color: COLORS.primary },
     { label: t('pending'),     icon: 'time',           screen: 'PendingRequests', color: COLORS.warning },
-    // IMPORTANT: this cannot navigate straight to 'CheckOut' — that screen
-    // requires a specific visitRequestId (route.params.visitRequestId) to
-    // know WHICH visit to end, which we don't have yet at this point. Doing
-    // so crashed with "Cannot read property 'visitRequestId' of undefined".
-    // Routing to PendingRequests' CHECKED_IN tab lets the officer pick who
-    // to check out first, same as tapping a checked-in card there directly.
     { label: t('check_out'),   icon: 'exit',           screen: 'PendingRequests', params: { initialTab: 'CHECKED_IN' }, color: COLORS.info },
+    { label: 'Contact Requests', icon: 'person-add',  screen: 'ContactRequests', color: COLORS.accent },
     { label: t('visit_logs'), icon: 'document-text',  screen: 'VisitLogs',       color: COLORS.success },
   ], [t]);
 
@@ -131,7 +126,7 @@ export const OfficerDashboardScreen: React.FC = () => {
         }
       >
         {/* Quick actions */}
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
           {quickActions.map((a) => (
             <TouchableOpacity
               key={a.label}
@@ -140,7 +135,7 @@ export const OfficerDashboardScreen: React.FC = () => {
               accessibilityRole="button"
               accessibilityLabel={a.label}
               style={{
-                flex: 1,
+                width: '31%',
                 backgroundColor: COLORS.white,
                 borderRadius: 14, padding: 12,
                 alignItems: 'center',
