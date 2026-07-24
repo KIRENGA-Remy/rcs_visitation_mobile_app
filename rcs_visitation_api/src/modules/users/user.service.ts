@@ -95,6 +95,12 @@ export class UserService {
         throw new Error('This National ID is already registered to another account');
       }
     }
+    if (dto.phone) {
+      const existing = await prisma.user.findUnique({ where: { phone: dto.phone } });
+      if (existing && existing.id !== userId) {
+        throw new Error('This phone number is already registered to another account');
+      }
+    }
     return prisma.user.update({
       where: { id: userId },
       data: {

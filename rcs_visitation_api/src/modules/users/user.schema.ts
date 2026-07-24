@@ -27,10 +27,16 @@ export const updatePushTokenSchema = z.object({
 });
 
 export const updateMyProfileSchema = z.object({
+  firstName:    z.string().min(2).max(50).optional(),
+  lastName:     z.string().min(2).max(50).optional(),
+  phone:        z.string().regex(/^\+?[0-9]{10,15}$/, 'Invalid phone number').optional(),
   nationalId:   z.string().min(4).max(30).optional(),
   gender:       z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
   dateOfBirth:  z.string().datetime().optional(),
-  profilePhoto: z.string().url().optional(),
+  profilePhoto: z.string().refine(
+    (v) => v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:image/'),
+    'Must be a valid URL or image data URI'
+  ).optional(),
   preferredLang:z.enum(['rw', 'en']).optional(),
 });
 
