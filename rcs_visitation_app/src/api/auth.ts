@@ -43,4 +43,8 @@ export const authApi = {
     await clearAllSecure([STORAGE_KEYS.ACCESS_TOKEN, STORAGE_KEYS.REFRESH_TOKEN]);
     await AsyncStorage.removeItem(STORAGE_KEYS.USER);
   },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await client.post('/auth/change-password', { currentPassword, newPassword });
+  },
 };
