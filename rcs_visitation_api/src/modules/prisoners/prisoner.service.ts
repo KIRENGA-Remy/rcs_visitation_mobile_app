@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { CreatePrisonerDto, TransferPrisonerDto, RestrictVisitsDto } from './prisoner.schema';
+import { CreatePrisonerDto, TransferPrisonerDto, RestrictVisitsDto, UpdatePrisonerDto, ReleasePrisonerDto } from './prisoner.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
 
@@ -38,6 +38,15 @@ export class PrisonerService {
     return { prisoners, pagination: buildPagination(page, limit, total) };
   }
 
+  /**
+   * Visitor-facing prisoner search — used when a visitor is requesting a
+   * NEW contact (not yet approved to visit anyone). Deliberately returns a
+   * much smaller field set than `findAll` (no dateOfBirth, nationalId,
+   * cellBlock/cellNumber, offenseCategory, restriction reason/notes) since
+   * this is reachable by any authenticated visitor, not just staff.
+   * Only ACTIVE prisoners are searchable — a visitor has no legitimate
+   * reason to find a TRANSFERRED/RELEASED/DECEASED prisoner through search.
+   */
   async searchForVisitor(query: { prisonId?: string; search?: string; page?: unknown; limit?: unknown }) {
     const { page, limit, skip } = parsePagination(query);
     if (!query.prisonId) {
@@ -109,6 +118,41 @@ export class PrisonerService {
         restrictionUntil:   dto.restrictionUntil ? new Date(dto.restrictionUntil) : null,
       },
     });
+  }
+
+  /** General edit — name, cell assignment, offense category, expected release date. */
+  async update(id: string, dto: UpdatePrisonerDto) {
+    return prisma.prisoner.update({
+      where: { id },
+      data: {
+        ...dto,
+        expectedReleaseDate: dto.expectedReleaseDate ? new Date(dto.expectedReleaseDate) : undefined,
+      },
+    });
+  }
+
+  /**
+   * Marks a prisoner as released and cancels any future visit activity,
+   * same as `transfer` does for the old facility — a released prisoner
+   * can't have pending or approved visits sitting against them.
+   */
+  async release(id: string, dto: ReleasePrisonerDto) {
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.prisoner.update({
+        where: { id },
+        data: { status: 'RELEASED', releaseNotes: dto.releaseNotes },
+      });
+      await tx.visitRequest.updateMany({
+        where: { prisonerId: id, status: { in: ['PENDING', 'APPROVED'] } },
+        data: { status: 'CANCELLED', cancellationReason: 'Prisoner has been released' },
+      });
+      return updated;
+    });
+  }
+
+  /** Reverses a RELEASED/TRANSFERRED status back to ACTIVE, e.g. to correct a mistaken entry. */
+  async reactivate(id: string) {
+    return prisma.prisoner.update({ where: { id }, data: { status: 'ACTIVE' } });
   }
 }
 

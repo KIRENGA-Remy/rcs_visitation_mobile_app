@@ -37,6 +37,18 @@ export class PrisonerController {
     try { sendSuccess(res, await prisonerService.restrictVisits(req.params.id, req.body), 'Visitation restriction updated'); }
     catch (err) { next(err); }
   }
+  async update(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await prisonerService.update(req.params.id, req.body), 'Prisoner updated'); }
+    catch (err) { next(err); }
+  }
+  async release(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await prisonerService.release(req.params.id, req.body), 'Prisoner marked as released'); }
+    catch (err) { next(err); }
+  }
+  async reactivate(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await prisonerService.reactivate(req.params.id), 'Prisoner reactivated'); }
+    catch (err) { next(err); }
+  }
 }
 
 export const prisonerController = new PrisonerController();
