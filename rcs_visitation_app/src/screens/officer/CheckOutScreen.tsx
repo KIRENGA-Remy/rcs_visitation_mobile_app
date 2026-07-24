@@ -20,7 +20,7 @@ import type { VisitLogIncidentType } from '@types';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
-  route: { params: { visitRequestId: string } };
+  route: { params?: { visitRequestId?: string } };
 };
 
 const INCIDENT_TYPES: VisitLogIncidentType[] = [
@@ -34,7 +34,7 @@ const QUALITY_OPTIONS = [
 ];
 
 export const CheckOutScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { visitRequestId } = route.params;
+  const visitRequestId = route.params?.visitRequestId;
   const qc = useQueryClient();
 
   const [incident, setIncident]       = useState<VisitLogIncidentType>('NONE');
@@ -47,9 +47,31 @@ export const CheckOutScreen: React.FC<Props> = ({ navigation, route }) => {
   const [checkedOutLog, setCheckedOutLog] = useState<any>(null);
 
   const { data: request, isLoading } = useQuery({
-    queryKey: QUERY_KEYS.VISIT_REQUEST(visitRequestId),
-    queryFn:  () => visitRequestsApi.get(visitRequestId),
+    queryKey: QUERY_KEYS.VISIT_REQUEST(visitRequestId!),
+    queryFn:  () => visitRequestsApi.get(visitRequestId!),
+    enabled:  !!visitRequestId,
   });
+
+  // Defensive guard — see CheckInScreen.tsx for why this matters: this
+  // screen must never be reached without a visitRequestId, but if it ever
+  // is (a bad navigation call elsewhere), show a clear message instead of
+  // crashing on `route.params.visitRequestId`.
+  if (!visitRequestId) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.surface }}>
+        <ScreenHeader title="Check Out Visitor" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.error} />
+          <Text style={{ marginTop: 12, fontSize: 15, fontWeight: '700', color: COLORS.text, textAlign: 'center' }}>
+            No visit selected
+          </Text>
+          <Text style={{ marginTop: 4, fontSize: 13, color: COLORS.textMuted, textAlign: 'center' }}>
+            Select a checked-in visitor from Pending Requests first.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (isLoading || !request) return <LoadingScreen />;
 
