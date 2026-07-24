@@ -18,7 +18,7 @@ import { useTranslation } from '@hooks/useTranslation';
 import { formatDate } from '@utils';
 
 export const ProfileScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { user }   = useAuthStore();
   const { mutate: logout, isPending } = useLogout();
   const { t }      = useTranslation();
@@ -36,7 +36,13 @@ export const ProfileScreen: React.FC = () => {
     ]);
   };
 
+  // "My Contacts" only applies to visitors — officers/admins share this
+  // same ProfileScreen but have no approved-prisoner relationships of
+  // their own to view.
   const menuItems = [
+    ...(user?.role === 'VISITOR'
+      ? [{ icon: 'people-outline', label: t('my_contacts'), onPress: () => navigation.navigate('Contacts') }]
+      : []),
     { icon: 'person-outline',            label: t('edit_profile'),   onPress: () => {} },
     { icon: 'lock-closed-outline',       label: t('change_password'),onPress: () => {} },
     { icon: 'notifications-outline',     label: t('notif_settings'), onPress: () => {} },
