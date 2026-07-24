@@ -47,8 +47,8 @@ export const ProfileScreen: React.FC = () => {
     { icon: 'lock-closed-outline',       label: t('change_password'),onPress: () => {} },
     { icon: 'notifications-outline',     label: t('notif_settings'), onPress: () => {} },
     { icon: 'shield-checkmark-outline',  label: t('privacy'),        onPress: () => {} },
-    { icon: 'help-circle-outline',       label: t('help'),           onPress: () => {} },
-    { icon: 'information-circle-outline',label: t('about'),          onPress: () => {} },
+    { icon: 'help-circle-outline',       label: t('help'),           onPress: () => navigation.navigate('Help') },
+    { icon: 'information-circle-outline',label: t('about'),          onPress: () => navigation.navigate('About') },
   ];
 
   return (
