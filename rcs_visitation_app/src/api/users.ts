@@ -1,7 +1,13 @@
 import client from './client';
-import type { UserAdmin, ApiResponse } from '@types';
+import type { UserAdmin, AuthUser, ApiResponse } from '@types';
 
 export const usersApi = {
+  /** Self-service — add/update own National ID, gender, DOB, photo, or language preference. */
+  updateMe: async (body: { nationalId?: string; gender?: string; dateOfBirth?: string; profilePhoto?: string; preferredLang?: 'en' | 'rw' }): Promise<AuthUser> => {
+    const res = await client.patch<ApiResponse<AuthUser>>('/users/me', body);
+    return res.data.data!;
+  },
+
   list: async (params?: { role?: string; status?: string; search?: string; page?: number; limit?: number }) => {
     const res = await client.get<ApiResponse<UserAdmin[]>>('/users', { params });
     return { data: res.data.data!, pagination: res.data.pagination };
