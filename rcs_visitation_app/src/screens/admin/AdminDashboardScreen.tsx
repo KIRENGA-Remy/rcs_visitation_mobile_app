@@ -1,17 +1,19 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StatusBar, TouchableOpacity, RefreshControl
+  View, Text, ScrollView, StatusBar, TouchableOpacity, RefreshControl, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 import { StatCardSkeleton } from '@components/common/Skeleton';
 import { Avatar } from '@components/common/Avatar';
 import { COLORS, QUERY_KEYS } from '@constants';
 import { useAuthStore } from '@stores/authStore';
 import { useNotificationStore } from '@stores/notificationStore';
 import { useTranslation } from '@hooks/useTranslation';
+import { useLogout } from '@hooks/useAuth';
 import { reportsApi } from '@api/reports';
 
 export const AdminDashboardScreen: React.FC = () => {
@@ -19,6 +21,7 @@ export const AdminDashboardScreen: React.FC = () => {
   const { user }        = useAuthStore();
   const { unreadCount } = useNotificationStore();
   const { t }           = useTranslation();
+  const { mutate: logout } = useLogout();
 
   const { data: stats, isLoading, refetch, isRefetching } = useQuery({
     queryKey: QUERY_KEYS.OVERVIEW,
@@ -43,9 +46,23 @@ export const AdminDashboardScreen: React.FC = () => {
     { label: t('reports'),          icon: 'bar-chart-outline',     screen: 'Reports',     color: COLORS.success, desc: 'Analytics and insights' },
     { label: t('visit_logs'),       icon: 'document-text-outline', screen: 'AdminLogs',   color: COLORS.warning, desc: 'Review all visit records' },
     { label: t('notifications'),    icon: 'notifications-outline', screen: 'Notifications', color: COLORS.error, desc: 'Send alerts and broadcasts' },
+    { label: t('profile'),          icon: 'person-circle-outline', screen: 'Profile',     color: COLORS.textMuted, desc: 'Your account and settings' },
   ], [t]);
 
   const handleNavPress = useCallback((screen: string) => navigation.navigate(screen), [navigation]);
+
+  const handleLogout = useCallback(() => {
+    Alert.alert(t('sign_out'), t('sign_out_confirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('sign_out'),
+        style: 'destructive',
+        onPress: () => logout(undefined, {
+          onSuccess: () => Toast.show({ type: 'success', text1: t('success') }),
+        }),
+      },
+    ]);
+  }, [t, logout]);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.surface }}>
@@ -56,7 +73,12 @@ export const AdminDashboardScreen: React.FC = () => {
         style={{ paddingTop: 52, paddingBottom: 28, paddingHorizontal: 20 }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => handleNavPress('Profile')}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('profile')}
+          >
             <Avatar firstName={user?.firstName ?? ''} lastName={user?.lastName ?? ''} size={42} />
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
@@ -70,27 +92,39 @@ export const AdminDashboardScreen: React.FC = () => {
                 <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>System Online</Text>
               </View>
             </View>
-          </View>
-          <TouchableOpacity
-            onPress={() => handleNavPress('Notifications')}
-            style={{ position: 'relative', padding: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('notifications')}
-          >
-            <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
-            {unreadCount > 0 && (
-              <View style={{
-                position: 'absolute', top: 4, right: 4,
-                width: 18, height: 18, borderRadius: 9,
-                backgroundColor: COLORS.accent,
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Text style={{ color: COLORS.black, fontSize: 10, fontWeight: '800' }}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <TouchableOpacity
+              onPress={() => handleNavPress('Notifications')}
+              style={{ position: 'relative', padding: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('notifications')}
+            >
+              <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute', top: 4, right: 4,
+                  width: 18, height: 18, borderRadius: 9,
+                  backgroundColor: COLORS.accent,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ color: COLORS.black, fontSize: 10, fontWeight: '800' }}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            {/* Admin accounts have the widest system access — logout must be
+               a single, always-visible tap, same as every other role. */}
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{ padding: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('sign_out')}
+            >
+              <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
