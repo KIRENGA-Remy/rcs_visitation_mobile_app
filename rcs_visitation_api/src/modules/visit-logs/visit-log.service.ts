@@ -2,6 +2,7 @@ import { prisma } from '../../config/prisma';
 import { CheckInDto, CheckOutDto } from './visit-log.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
+import { notificationService } from '../notifications/notification.service';
 
 export class VisitLogService {
 
@@ -49,7 +50,14 @@ export class VisitLogService {
   async checkOut(visitLogId: string, dto: CheckOutDto, officerUserId: string) {
     const log = await prisma.visitLog.findUniqueOrThrow({
       where: { id: visitLogId },
-      include: { visitRequest: true },
+      include: {
+        visitRequest: {
+          include: {
+            visitorProfile: { select: { userId: true } },
+            prisoner:        { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
     });
 
     if (log.actualCheckoutTime) throw new Error('Visit is already checked out');
@@ -59,7 +67,7 @@ export class VisitLogService {
     const durationMins = Math.round((checkoutTime.getTime() - log.actualCheckinTime.getTime()) / 60000);
     const isFlagged    = dto.incidentType !== 'NONE';
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Update log
       const updated = await tx.visitLog.update({
         where: { id: visitLogId },
@@ -91,6 +99,22 @@ export class VisitLogService {
       });
       return updated;
     });
+
+    // Same gap as visit-request approval: check-out previously updated the
+    // database but never told the visitor their visit was recorded complete.
+    try {
+      await notificationService.send({
+        userId: log.visitRequest.visitorProfile.userId,
+        type:   'VISIT_COMPLETED',
+        title:  'Visit Completed',
+        body:   `Your visit to ${log.visitRequest.prisoner.firstName} ${log.visitRequest.prisoner.lastName} has been logged as complete. Thank you.`,
+        visitRequestId: log.visitRequestId,
+      });
+    } catch {
+      // Non-fatal — the check-out itself already succeeded.
+    }
+
+    return result;
   }
 
   async getById(id: string) {
