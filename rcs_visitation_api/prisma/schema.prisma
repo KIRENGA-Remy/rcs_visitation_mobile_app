@@ -281,6 +281,9 @@ model Prisoner {
   transferredAt           DateTime?
   transferNotes           String?
 
+  // Release tracking
+  releaseNotes            String?
+
   // Counters (denormalized)
   totalVisitsReceived Int     @default(0)
 
