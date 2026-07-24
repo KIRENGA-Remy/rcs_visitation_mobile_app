@@ -38,6 +38,31 @@ export class PrisonerService {
     return { prisoners, pagination: buildPagination(page, limit, total) };
   }
 
+  async searchForVisitor(query: { prisonId?: string; search?: string; page?: unknown; limit?: unknown }) {
+    const { page, limit, skip } = parsePagination(query);
+    if (!query.prisonId) {
+      throw new Error('prisonId is required to search prisoners');
+    }
+    const where: any = { prisonId: query.prisonId, status: 'ACTIVE' };
+    if (query.search) {
+      where.OR = [
+        { firstName:      { contains: query.search, mode: 'insensitive' } },
+        { lastName:       { contains: query.search, mode: 'insensitive' } },
+        { prisonerNumber: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+    const select = {
+      id: true, firstName: true, lastName: true, prisonerNumber: true,
+      status: true, visitingRestricted: true,
+      prison: { select: { id: true, name: true, code: true } },
+    } as const;
+    const [prisoners, total] = await Promise.all([
+      prisma.prisoner.findMany({ where, skip, take: limit, select, orderBy: { lastName: 'asc' } }),
+      prisma.prisoner.count({ where }),
+    ]);
+    return { prisoners, pagination: buildPagination(page, limit, total) };
+  }
+
   async findById(id: string) {
     return prisma.prisoner.findUniqueOrThrow({
       where: { id },

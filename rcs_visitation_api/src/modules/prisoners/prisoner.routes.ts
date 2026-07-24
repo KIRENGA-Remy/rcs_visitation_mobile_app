@@ -8,6 +8,7 @@ import { createPrisonerSchema, transferPrisonerSchema, restrictVisitsSchema } fr
 const router = Router();
 
 router.get('/',                  authenticate, authorize('ADMIN', 'PRISON_OFFICER'), prisonerController.findAll.bind(prisonerController));
+router.get('/search',            authenticate, authorize('VISITOR'), prisonerController.searchForVisitor.bind(prisonerController));
 router.get('/:id',               authenticate, authorize('ADMIN', 'PRISON_OFFICER'), prisonerController.findById.bind(prisonerController));
 router.post('/',                 authenticate, authorize('ADMIN'), validate(createPrisonerSchema), prisonerController.create.bind(prisonerController));
 router.patch('/:id/transfer',    authenticate, authorize('ADMIN'), validate(transferPrisonerSchema), prisonerController.transfer.bind(prisonerController));

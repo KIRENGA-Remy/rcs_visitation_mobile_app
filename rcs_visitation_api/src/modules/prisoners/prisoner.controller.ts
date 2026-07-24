@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { prisonerService } from './prisoner.service';
-import { sendSuccess } from '../../shared/utils/apiResponse';
+import { sendSuccess, sendError } from '../../shared/utils/apiResponse';
 import { AuthRequest } from '../../shared/types';
 
 export class PrisonerController {
@@ -13,6 +13,17 @@ export class PrisonerController {
       const { prisoners, pagination } = await prisonerService.findAll(req.query as any);
       sendSuccess(res, prisoners, 'Prisoners retrieved', 200, pagination);
     } catch (err) { next(err); }
+  }
+  async searchForVisitor(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { prisoners, pagination } = await prisonerService.searchForVisitor(req.query as any);
+      sendSuccess(res, prisoners, 'Prisoners retrieved', 200, pagination);
+    } catch (err: any) {
+      if (err.message?.includes('prisonId is required')) {
+        sendError(res, err.message, 400); return;
+      }
+      next(err);
+    }
   }
   async findById(req: AuthRequest, res: Response, next: NextFunction) {
     try { sendSuccess(res, await prisonerService.findById(req.params.id)); }
