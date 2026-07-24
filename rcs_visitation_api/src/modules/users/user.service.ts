@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto } from './user.schema';
+import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto, UpdateMyProfileDto } from './user.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
 import { ValidationError, NotFoundError } from '../../shared/utils/errors';
@@ -85,6 +85,23 @@ export class UserService {
         nationalId: null,
       },
       select: { id: true, status: true },
+    });
+  }
+
+  async updateMe(userId: string, dto: UpdateMyProfileDto) {
+    if (dto.nationalId) {
+      const existing = await prisma.user.findUnique({ where: { nationalId: dto.nationalId } });
+      if (existing && existing.id !== userId) {
+        throw new Error('This National ID is already registered to another account');
+      }
+    }
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...dto,
+        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+      },
+      select: USER_SELECT,
     });
   }
 

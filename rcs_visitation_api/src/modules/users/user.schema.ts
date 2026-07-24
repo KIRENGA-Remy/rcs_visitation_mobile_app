@@ -26,7 +26,16 @@ export const updatePushTokenSchema = z.object({
     ),
 });
 
+export const updateMyProfileSchema = z.object({
+  nationalId:   z.string().min(4).max(30).optional(),
+  gender:       z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
+  dateOfBirth:  z.string().datetime().optional(),
+  profilePhoto: z.string().url().optional(),
+  preferredLang:z.enum(['rw', 'en']).optional(),
+});
+
 export type UpdateUserRoleDto   = z.infer<typeof updateUserRoleSchema>;
 export type UpdateUserStatusDto = z.infer<typeof updateUserStatusSchema>;
 export type ListUsersQuery      = z.infer<typeof listUsersQuerySchema>;
 export type UpdatePushTokenDto  = z.infer<typeof updatePushTokenSchema>;
+export type UpdateMyProfileDto  = z.infer<typeof updateMyProfileSchema>;

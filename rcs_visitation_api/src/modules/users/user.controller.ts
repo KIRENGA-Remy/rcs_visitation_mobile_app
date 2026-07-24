@@ -40,6 +40,14 @@ export class UserController {
     }
   }
 
+  async updateMe(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await userService.updateMe(req.user!.id, req.body), 'Profile updated'); }
+    catch (err: any) {
+      if (err.message?.includes('already registered')) { sendError(res, err.message, 409); return; }
+      next(err);
+    }
+  }
+
   async updatePushToken(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { expoPushToken } = req.body;
