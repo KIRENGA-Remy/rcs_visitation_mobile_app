@@ -20,11 +20,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
-  route: { params: { visitRequestId: string } };
+  route: { params?: { visitRequestId?: string } };
 };
 
 export const CheckInScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { visitRequestId } = route.params;
+  const visitRequestId = route.params?.visitRequestId;
   const qc = useQueryClient();
 
   const [adults, setAdults]     = useState(1);
@@ -34,9 +34,31 @@ export const CheckInScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading]   = useState(false);
 
   const { data: request, isLoading } = useQuery({
-    queryKey: QUERY_KEYS.VISIT_REQUEST(visitRequestId),
-    queryFn:  () => visitRequestsApi.get(visitRequestId),
+    queryKey: QUERY_KEYS.VISIT_REQUEST(visitRequestId!),
+    queryFn:  () => visitRequestsApi.get(visitRequestId!),
+    enabled:  !!visitRequestId,
   });
+
+  // Defensive guard: if this screen is ever reached without a
+  // visitRequestId (e.g. a future navigation call forgets to pass it, the
+  // way the Dashboard's old "Check Out" shortcut did), fail with a clear
+  // message and a way back instead of crashing on `route.params.visitRequestId`.
+  if (!visitRequestId) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.surface }}>
+        <ScreenHeader title="Check In Visitor" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Ionicons name="alert-circle-outline" size={48} color={COLORS.error} />
+          <Text style={{ marginTop: 12, fontSize: 15, fontWeight: '700', color: COLORS.text, textAlign: 'center' }}>
+            No visit selected
+          </Text>
+          <Text style={{ marginTop: 4, fontSize: 13, color: COLORS.textMuted, textAlign: 'center' }}>
+            Scan a visitor's QR code or select a request from Pending Requests first.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (isLoading || !request) return <LoadingScreen />;
 
