@@ -35,6 +35,7 @@ export const AdminDashboardScreen: React.FC = () => {
     { label: t('total_visitors'),    value: stats?.users?.visitors ?? 0,           icon: 'person-add',       color: COLORS.accent   },
     { label: t('today_checkins'),    value: stats?.todayCheckins ?? 0,             icon: 'enter',            color: COLORS.success  },
     { label: t('pending_requests'),  value: stats?.visitRequests?.pending ?? 0,    icon: 'time',             color: COLORS.warning  },
+    { label: 'Contact Requests',     value: stats?.pendingContactRequests ?? 0,    icon: 'person-add',       color: COLORS.accent   },
     { label: t('flagged_incidents'), value: stats?.flaggedIncidents ?? 0,          icon: 'alert-circle',     color: COLORS.error    },
   ], [stats, t]);
 
@@ -141,7 +142,7 @@ export const AdminDashboardScreen: React.FC = () => {
 
         {isLoading
           ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 28 }}>
-              {[1,2,3,4,5,6].map(i => <StatCardSkeleton key={i} />)}
+              {[1,2,3,4,5,6,7].map(i => <StatCardSkeleton key={i} />)}
             </View>
           : <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 28 }}>
               {statCards.map((s) => (
