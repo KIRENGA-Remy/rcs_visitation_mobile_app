@@ -9,12 +9,18 @@ const client: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 });
 
+// A separate, un-intercepted instance for the refresh call itself — using
+// `client` here would recurse back into this same 401 handler if the
+// refresh token has also expired.
 const refreshClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 });
 
+// If several requests 401 at nearly the same moment, we want a single
+// in-flight refresh call, not one per failed request. Every 401 handler
+// awaits this same promise; only the first caller actually starts it.
 let refreshPromise: Promise<string | null> | null = null;
 
 const performTokenRefresh = async (): Promise<string | null> => {
@@ -35,18 +41,19 @@ const performTokenRefresh = async (): Promise<string | null> => {
 
       return accessToken as string;
     } catch {
-      return null; 
+      return null; // refresh token itself is invalid/expired — caller must log out
     } finally {
-      refreshPromise = null; 
+      refreshPromise = null;
     }
   })();
 
   return refreshPromise;
 };
 
-
+// ── Request interceptor — attach JWT from SecureStore ────────────────────
 client.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    // Check connectivity before sending
     const net = await NetInfo.fetch();
     if (!net.isConnected) {
       return Promise.reject(
@@ -63,6 +70,7 @@ client.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// ── Response interceptor — friendly errors, auto-logout on 401 ───────────
 client.interceptors.response.use(
   (response) => response,
   async (error: AxiosError & { isOffline?: boolean }) => {
@@ -71,6 +79,7 @@ client.interceptors.response.use(
     }
 
     if (!error.response) {
+      // Network error / timeout
       if (error.code === 'ECONNABORTED') {
         return Promise.reject(new Error('Request timed out. The server is taking too long to respond.'));
       }
@@ -126,6 +135,7 @@ client.interceptors.response.use(
       return Promise.reject(new Error('Server error. Our team has been notified. Please try again shortly.'));
     }
 
+    // Pass through any specific backend message
     const backendMsg = (error.response.data as any)?.message;
     return Promise.reject(new Error(backendMsg ?? 'Something went wrong. Please try again.'));
   }

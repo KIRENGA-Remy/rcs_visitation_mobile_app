@@ -30,8 +30,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   lastActiveAt: Date.now(),
 
   setAuth: async (user, accessToken, refreshToken) => {
+    // Tokens go to SecureStore (encrypted)
     await setSecure(STORAGE_KEYS.ACCESS_TOKEN,  accessToken);
     await setSecure(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+    // User profile goes to AsyncStorage (may be large JSON)
     await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
     set({ user, accessToken, lastActiveAt: Date.now() });
   },
