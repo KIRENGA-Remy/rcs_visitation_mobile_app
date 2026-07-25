@@ -79,10 +79,8 @@ export class ScheduleService {
 
   /**
    * Notifies every visitor with a live (PENDING/APPROVED) request against
-   * this schedule, plus every officer assigned to the schedule's prison.
-   * There's no dedicated NotificationType for schedule changes in the
-   * current schema — reusing SYSTEM_ALERT rather than adding a new enum
-   * value (would need its own migration) for now.
+   * this schedule, plus every officer assigned to the schedule's prison,
+   * using the dedicated SCHEDULE_CHANGED notification type.
    */
   private async notifyScheduleChange(schedule: { id: string; prisonId: string }, title: string, body: string) {
     const [affectedRequests, assignedOfficers] = await Promise.all([
@@ -102,7 +100,7 @@ export class ScheduleService {
 
     await Promise.allSettled(
       allRecipients.map((userId) =>
-        notificationService.send({ userId, type: 'SYSTEM_ALERT', title, body })
+        notificationService.send({ userId, type: 'SCHEDULE_CHANGED', title, body })
       )
     );
   }

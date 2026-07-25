@@ -98,6 +98,7 @@ enum NotificationType {
   VISIT_COMPLETED
   PRISONER_TRANSFERRED
   SLOT_OPENING        // new slots available
+  SCHEDULE_CHANGED    // a visit schedule's time/capacity was edited or cancelled
   SYSTEM_ALERT
 }
 
