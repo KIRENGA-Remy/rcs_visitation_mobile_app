@@ -16,7 +16,13 @@ const envSchema = z.object({
   RATE_LIMIT_MAX:         z.coerce.number().default(100),
   ADMIN_PASSWORD:         z.string().min(8),
   OFFICER_PASSWORD:       z.string().min(8),
-  VISITOR_PASSWORD:       z.string().min(8)
+  VISITOR_PASSWORD:       z.string().min(8),
+  // Free email delivery via Gmail SMTP — used to send officer account
+  // setup OTPs. Optional at the schema level so the rest of the app still
+  // boots without it configured; emailService itself throws a clear error
+  // if something tries to send without these set.
+  EMAIL_USER:             z.string().email().optional(),
+  EMAIL_APP_PASSWORD:     z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
