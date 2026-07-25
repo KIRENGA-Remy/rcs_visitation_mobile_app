@@ -37,15 +37,6 @@ export const updateMyProfileSchema = z.object({
   nationalId:   z.string().min(4).max(30).optional(),
   gender:       z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
   dateOfBirth:  z.string().datetime().optional(),
-  // Accepts either a real hosted URL or a base64 data URI — there's no
-  // cloud/object storage configured in this backend, so the pragmatic path
-  // for now is storing the image directly as a data URI in this column.
-  // A real deployment should swap this for actual file upload + storage
-  // and keep only a URL here.
-  profilePhoto: z.string().refine(
-    (v) => v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:image/'),
-    'Must be a valid URL or image data URI'
-  ).optional(),
   preferredLang:z.enum(['rw', 'en']).optional(),
 });
 

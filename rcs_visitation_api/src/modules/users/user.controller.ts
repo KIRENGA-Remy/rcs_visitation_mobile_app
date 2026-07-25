@@ -53,6 +53,13 @@ export class UserController {
     }
   }
 
+  async updatePhoto(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) { sendError(res, 'An image file is required', 422); return; }
+      sendSuccess(res, await userService.updatePhoto(req.user!.id, req.file), 'Profile photo updated');
+    } catch (err) { next(err); }
+  }
+
   async createOfficer(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const result = await userService.createOfficer(req.body);

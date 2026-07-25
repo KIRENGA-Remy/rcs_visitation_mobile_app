@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { userController } from './user.controller';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
@@ -8,13 +9,31 @@ import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema, upd
 
 const router = Router();
 
+// In-memory, image-only, 5MB cap — plenty for a profile photo, uploaded
+// straight to Cloudinary (cloudinary.service.ts), never touching local disk.
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      cb(new Error('Only image files are allowed for a profile photo'));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
 // PATCH /api/v1/users/push-token 
 router.patch('/push-token', authenticate, validate(updatePushTokenSchema), userController.updatePushToken.bind(userController));
 
 // PATCH /api/v1/users/me — any authenticated user updates their own limited
-// fields (nationalId, gender, dateOfBirth, profilePhoto, preferredLang).
+// fields (nationalId, gender, dateOfBirth, preferredLang). Photo is handled
+// by the dedicated multipart endpoint below, not this JSON one.
 // Registered before '/:id' so it's never shadowed by the admin-only route.
 router.patch('/me', authenticate, validate(updateMyProfileSchema), userController.updateMe.bind(userController));
+
+// POST /api/v1/users/me/photo — multipart upload, straight to Cloudinary
+router.post('/me/photo', authenticate, photoUpload.single('photo'), userController.updatePhoto.bind(userController));
 
 // PUBLIC (unauthenticated) — the officer hasn't logged in yet at this point.
 // Rate-limited like login/register since it's an OTP-guessing surface.

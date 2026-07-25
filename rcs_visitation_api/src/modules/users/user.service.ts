@@ -5,6 +5,7 @@ import { buildPagination } from '../../shared/utils/apiResponse';
 import { ValidationError, NotFoundError } from '../../shared/utils/errors';
 import { hashPassword, comparePassword } from '../../shared/utils/bcrypt';
 import { emailService } from '../../shared/services/email.service';
+import { cloudinaryService } from '../../shared/services/cloudinary.service';
 import { randomBytes } from 'crypto';
 
 // Safe select — never return passwordHash
@@ -98,6 +99,21 @@ export class UserService {
         nationalId: null,
       },
       select: { id: true, status: true },
+    });
+  }
+
+  /**
+   * Dedicated photo upload — replaces the previous approach of accepting a
+   * base64 data URI directly in updateMe's JSON body, which bloated the
+   * database with large text blobs. Now the image goes to Cloudinary and
+   * only the resulting URL is stored.
+   */
+  async updatePhoto(userId: string, file: Express.Multer.File) {
+    const upload = await cloudinaryService.uploadBuffer(file.buffer, 'profile-photos', 'image');
+    return prisma.user.update({
+      where: { id: userId },
+      data: { profilePhoto: upload.url },
+      select: USER_SELECT,
     });
   }
 
