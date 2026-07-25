@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StatusBar, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
@@ -13,6 +13,15 @@ import { usersApi } from '@api/users';
 import { useTranslation } from '@hooks/useTranslation';
 import { extractApiError } from '@utils';
 
+/**
+ * Photo upload now goes to Cloudinary (free tier) via a dedicated multipart
+ * endpoint (POST /users/me/photo) instead of embedding a base64 data URI in
+ * the profile JSON — that previous approach bloated the database and every
+ * API response that included the user.
+ *
+ * expo-image-picker is NOT yet in package.json — run
+ * `npx expo install expo-image-picker` before this screen will build.
+ */
 export const EditProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
@@ -21,13 +30,19 @@ export const EditProfileScreen: React.FC = () => {
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName]   = useState(user?.lastName ?? '');
   const [phone, setPhone]         = useState(user?.phone ?? '');
-  const [photo, setPhoto]         = useState<string | undefined>(user?.profilePhoto);
+  const [photoPreview, setPhotoPreview] = useState<string | undefined>(user?.profilePhoto);
+  // A freshly-picked LOCAL image not yet uploaded — kept separate from
+  // photoPreview (which may already be a remote Cloudinary URL) so Save
+  // knows whether there's actually a new file to upload.
+  const [pickedPhoto, setPickedPhoto] = useState<{ uri: string; name: string; mimeType: string } | null>(null);
   const [saving, setSaving]       = useState(false);
   const [pickingPhoto, setPickingPhoto] = useState(false);
 
   const handlePickPhoto = async () => {
     setPickingPhoto(true);
     try {
+      // Lazy-imported so the rest of the app doesn't hard-fail if the
+      // package hasn't been installed yet — only this screen needs it.
       const ImagePicker = await import('expo-image-picker');
 
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -40,13 +55,15 @@ export const EditProfileScreen: React.FC = () => {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.5,       // keep the base64 payload reasonably small
-        base64: true,
+        quality: 0.7,
       });
 
-      if (!result.canceled && result.assets[0]?.base64) {
-        const mime = result.assets[0].mimeType ?? 'image/jpeg';
-        setPhoto(`data:${mime};base64,${result.assets[0].base64}`);
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        const mimeType = asset.mimeType ?? 'image/jpeg';
+        const name = asset.fileName ?? `profile.${mimeType.split('/')[1] ?? 'jpg'}`;
+        setPickedPhoto({ uri: asset.uri, name, mimeType });
+        setPhotoPreview(asset.uri); // instant local preview before upload
       }
     } catch (err: any) {
       Toast.show({
@@ -66,13 +83,20 @@ export const EditProfileScreen: React.FC = () => {
     }
     setSaving(true);
     try {
+      // Upload the photo first (if a new one was picked) so we have the
+      // real Cloudinary URL before merging in the rest of the profile update.
+      let latestUser = user;
+      if (pickedPhoto) {
+        latestUser = await usersApi.uploadPhoto(pickedPhoto);
+      }
+
       const updated = await usersApi.updateMe({
         firstName: firstName.trim(),
         lastName:  lastName.trim(),
         phone:     phone.trim(),
-        ...(photo && photo !== user?.profilePhoto ? { profilePhoto: photo } : {}),
       });
-      setUser(updated);
+
+      setUser({ ...latestUser, ...updated } as typeof user & {});
       Toast.show({ type: 'success', text1: 'Profile updated' });
       navigation.goBack();
     } catch (err: any) {
@@ -91,7 +115,7 @@ export const EditProfileScreen: React.FC = () => {
         <View style={{ alignItems: 'center', marginBottom: 24 }}>
           <TouchableOpacity onPress={handlePickPhoto} disabled={pickingPhoto} activeOpacity={0.8}>
             <View>
-              <Avatar firstName={firstName} lastName={lastName} size={88} photoUrl={photo} />
+              <Avatar firstName={firstName} lastName={lastName} size={88} photoUrl={photoPreview} />
               <View style={{
                 position: 'absolute', bottom: 0, right: 0,
                 width: 30, height: 30, borderRadius: 15,

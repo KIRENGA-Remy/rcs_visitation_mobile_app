@@ -2,13 +2,28 @@ import client from './client';
 import type { UserAdmin, AuthUser, ApiResponse } from '@types';
 
 export const usersApi = {
-  /** Self-service — add/update own National ID, gender, DOB, photo, or language preference. */
+  /** Self-service — add/update own National ID, gender, DOB, or language preference. Photo has its own endpoint below. */
   updateMe: async (body: {
     firstName?: string; lastName?: string; phone?: string;
     nationalId?: string; gender?: string; dateOfBirth?: string;
-    profilePhoto?: string; preferredLang?: 'en' | 'rw';
+    preferredLang?: 'en' | 'rw';
   }): Promise<AuthUser> => {
     const res = await client.patch<ApiResponse<AuthUser>>('/users/me', body);
+    return res.data.data!;
+  },
+
+  /**
+   * Uploads a profile photo — multipart/form-data, backend relays it to
+   * Cloudinary and stores only the resulting URL. Replaces the previous
+   * approach of sending a base64 data URI inside updateMe's JSON body,
+   * which bloated the database with large text blobs.
+   */
+  uploadPhoto: async (photo: { uri: string; name: string; mimeType: string }): Promise<AuthUser> => {
+    const form = new FormData();
+    form.append('photo', { uri: photo.uri, name: photo.name, type: photo.mimeType } as any);
+    const res = await client.post<ApiResponse<AuthUser>>('/users/me/photo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return res.data.data!;
   },
 
