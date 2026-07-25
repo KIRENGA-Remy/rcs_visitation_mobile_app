@@ -23,6 +23,13 @@ const envSchema = z.object({
   // if something tries to send without these set.
   EMAIL_USER:             z.string().email().optional(),
   EMAIL_APP_PASSWORD:     z.string().optional(),
+  // Cloudinary — free tier object storage for report documents and profile
+  // photos. Optional at the schema level so the app still boots without it
+  // configured; cloudinary.service.ts throws a clear error if something
+  // tries to upload without these set.
+  CLOUDINARY_CLOUD_NAME:  z.string().optional(),
+  CLOUDINARY_API_KEY:     z.string().optional(),
+  CLOUDINARY_API_SECRET:  z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
