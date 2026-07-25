@@ -47,6 +47,16 @@ export const SchedulesScreen: React.FC = () => {
     );
   };
 
+  const handleReopen = async (scheduleId: string) => {
+    try {
+      await schedulesApi.reopen(scheduleId);
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULES });
+      Toast.show({ type: 'success', text1: 'Schedule reopened' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: extractApiError(err) });
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.surface }}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
@@ -63,64 +73,88 @@ export const SchedulesScreen: React.FC = () => {
           contentContainerStyle={{ padding: 16, paddingBottom: 80, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} />}
           ListEmptyComponent={<EmptyState icon="calendar-outline" title="No schedules found" description="No visit time slots have been created yet." />}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('ScheduleForm', { id: item.id })}
-              style={{
-              backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
-              marginBottom: 10, shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
-              borderLeftWidth: 4,
-              borderLeftColor: item.status === 'OPEN' ? COLORS.success : item.status === 'FULL' ? COLORS.warning : COLORS.error,
-            }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+          renderItem={({ item }) => {
+            const dateObj = new Date(item.startTime);
+            const day     = dateObj.getDate();
+            const month   = dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+            const isPast  = new Date(item.endTime) < new Date();
+            const capacityRatio = item.maxCapacity > 0 ? item.currentBookings / item.maxCapacity : 0;
+            const capacityColor = capacityRatio >= 1 ? COLORS.error : capacityRatio >= 0.7 ? COLORS.warning : COLORS.success;
+
+            return (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('ScheduleForm', { id: item.id })}
+                style={{
+                  backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
+                  marginBottom: 10, flexDirection: 'row', gap: 12,
+                  borderWidth: 1, borderColor: COLORS.border,
+                  opacity: isPast ? 0.65 : 1,
+                }}
+              >
+                {/* Calendar-day chip — a real, functional date reference
+                    instead of a purely decorative colour stripe. */}
+                <View style={{
+                  width: 52, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: `${COLORS.primary}0D`, borderRadius: 12, paddingVertical: 10,
+                }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.primary, letterSpacing: 0.5 }}>{month}</Text>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.primary, marginTop: 1 }}>{day}</Text>
+                </View>
+
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }}>
-                    {item.label ?? 'Visit Slot'}
-                  </Text>
-                  <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 2 }}>
-                    {item.prison?.name}
-                  </Text>
-                </View>
-                <StatusBadge status={item.status} size="sm" />
-              </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }} numberOfLines={1}>
+                        {item.label ?? VISIT_TYPE_LABELS[item.visitType]}
+                      </Text>
+                      <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>
+                        {item.prison?.name} · {formatTime(item.startTime)}–{formatTime(item.endTime)}
+                      </Text>
+                    </View>
+                    <StatusBadge status={item.status} size="sm" />
+                  </View>
 
-              <View style={{ gap: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="calendar-outline" size={13} color={COLORS.textMuted} />
-                  <Text style={{ fontSize: 13, color: COLORS.textMuted }}>{formatDate(item.startTime)}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="time-outline" size={13} color={COLORS.textMuted} />
-                  <Text style={{ fontSize: 13, color: COLORS.textMuted }}>
-                    {formatTime(item.startTime)} – {formatTime(item.endTime)}
-                  </Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="people-outline" size={13} color={COLORS.textMuted} />
-                  <Text style={{ fontSize: 13, color: COLORS.textMuted }}>
-                    {item.currentBookings} / {item.maxCapacity} booked
-                    · {VISIT_TYPE_LABELS[item.visitType]}
-                  </Text>
-                </View>
-              </View>
+                  {/* Capacity as an actual proportion, not just a number pair */}
+                  <View style={{ marginTop: 10 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={{ fontSize: 11, color: COLORS.textMuted }}>
+                        {item.currentBookings} of {item.maxCapacity} booked
+                      </Text>
+                      <Text style={{ fontSize: 11, color: capacityColor, fontWeight: '700' }}>
+                        {Math.round(capacityRatio * 100)}%
+                      </Text>
+                    </View>
+                    <View style={{ height: 4, borderRadius: 2, backgroundColor: COLORS.border, overflow: 'hidden' }}>
+                      <View style={{
+                        height: '100%', width: `${Math.min(capacityRatio, 1) * 100}%`,
+                        backgroundColor: capacityColor, borderRadius: 2,
+                      }} />
+                    </View>
+                  </View>
 
-              {item.status === 'OPEN' && (
-                <TouchableOpacity
-                  onPress={() => handleCancel(item.id)}
-                  style={{
-                    marginTop: 12, paddingVertical: 8, borderRadius: 8,
-                    backgroundColor: '#FEF2F2', alignItems: 'center',
-                    flexDirection: 'row', justifyContent: 'center', gap: 6,
-                  }}
-                >
-                  <Ionicons name="close-circle-outline" size={16} color={COLORS.error} />
-                  <Text style={{ color: COLORS.error, fontSize: 13, fontWeight: '600' }}>Cancel This Slot</Text>
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          )}
+                  {item.status === 'OPEN' && (
+                    <TouchableOpacity
+                      onPress={() => handleCancel(item.id)}
+                      style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                    >
+                      <Ionicons name="close-circle-outline" size={14} color={COLORS.error} />
+                      <Text style={{ color: COLORS.error, fontSize: 12, fontWeight: '600' }}>Cancel slot</Text>
+                    </TouchableOpacity>
+                  )}
+                  {item.status === 'CANCELLED' && (
+                    <TouchableOpacity
+                      onPress={() => handleReopen(item.id)}
+                      style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                    >
+                      <Ionicons name="refresh-outline" size={14} color={COLORS.success} />
+                      <Text style={{ color: COLORS.success, fontSize: 12, fontWeight: '600' }}>Reopen slot</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
 
