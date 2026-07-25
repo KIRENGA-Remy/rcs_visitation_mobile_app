@@ -47,6 +47,21 @@ export const usersApi = {
     return res.data.data!;
   },
 
+  /**
+   * Admin creates ANOTHER admin account — a separate method hitting a
+   * separate endpoint (/users/admins), not createOfficer with a role
+   * parameter. See the backend schema comment for why: a single shared
+   * "create staff, pick a role" form is exactly the kind of design that
+   * lets a misclick grant admin privileges to what should've been an
+   * officer account.
+   */
+  createAdmin: async (body: {
+    email: string; phone: string; firstName: string; lastName: string; nationalId?: string;
+  }): Promise<{ user: UserAdmin; emailSent: boolean; setupOtp?: string }> => {
+    const res = await client.post<ApiResponse<{ user: UserAdmin; emailSent: boolean; setupOtp?: string }>>('/users/admins', body);
+    return res.data.data!;
+  },
+
   /** Public — officer enters their emailed OTP + chosen password to activate their account. */
   completeSetup: async (email: string, otp: string, newPassword: string): Promise<void> => {
     await client.post('/users/complete-setup', { email, otp, newPassword });
