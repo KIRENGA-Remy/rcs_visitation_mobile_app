@@ -5,6 +5,8 @@ import { PendingRequestsScreen }  from '@screens/officer/PendingRequestsScreen';
 import { ContactRequestsScreen }  from '@screens/officer/ContactRequestsScreen';
 import { MyReportsScreen }        from '@screens/officer/MyReportsScreen';
 import { ReportUploadScreen }     from '@screens/officer/ReportUploadScreen';
+import { SchedulesScreen }        from '@screens/admin/SchedulesScreen';
+import { ScheduleFormScreen }     from '@screens/admin/ScheduleFormScreen';
 import { ReviewRequestScreen }    from '@screens/officer/ReviewRequestScreen';
 import { ScanQRScreen }           from '@screens/officer/ScanQRScreen';
 import { CheckInScreen }          from '@screens/officer/CheckInScreen';
@@ -29,6 +31,8 @@ export const OfficerNavigator: React.FC = () => (
     <Stack.Screen name="ContactRequests"  component={ContactRequestsScreen} />
     <Stack.Screen name="MyReports"        component={MyReportsScreen} />
     <Stack.Screen name="ReportUpload"     component={ReportUploadScreen} />
+    <Stack.Screen name="Schedules"        component={SchedulesScreen} />
+    <Stack.Screen name="ScheduleForm"     component={ScheduleFormScreen} />
     <Stack.Screen name="ReviewRequest"    component={ReviewRequestScreen} />
     <Stack.Screen name="ScanQR"           component={ScanQRScreen} />
     <Stack.Screen name="CheckIn"          component={CheckInScreen} />

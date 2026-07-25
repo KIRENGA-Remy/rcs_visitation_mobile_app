@@ -35,6 +35,8 @@ export type OfficerStackParamList = {
   ContactRequests:    undefined;
   MyReports:          undefined;
   ReportUpload:       { reportRequestId?: string; presetTitle?: string } | undefined;
+  Schedules:          undefined;
+  ScheduleForm:       { id?: string } | undefined;
   ReviewRequest:      { id: string };
   ScanQR:             undefined;
   CheckIn:            { visitRequestId: string };

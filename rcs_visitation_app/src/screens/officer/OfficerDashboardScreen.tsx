@@ -76,6 +76,7 @@ export const OfficerDashboardScreen: React.FC = () => {
     { label: 'Contact Requests', icon: 'person-add',  screen: 'ContactRequests', color: COLORS.accent },
     { label: t('visit_logs'), icon: 'document-text',  screen: 'VisitLogs',       color: COLORS.success },
     { label: 'My Reports',    icon: 'folder-open',     screen: 'MyReports',       color: COLORS.info },
+    { label: 'Visit Schedules', icon: 'calendar',      screen: 'Schedules',       color: COLORS.warning },
     { label: t('profile'),    icon: 'person-circle',  screen: 'Profile',         color: COLORS.textMuted },
   ], [t]);
 
