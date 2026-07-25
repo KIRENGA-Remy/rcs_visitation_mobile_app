@@ -5,13 +5,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Card } from '@components/common/Card';
+import { FileTypeBadge } from '@components/common/FileTypeBadge';
 import { EmptyState } from '@components/common/EmptyState';
 import { LoadingScreen } from '@components/common/LoadingScreen';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS } from '@constants';
 import { officerReportsApi } from '@api/officerReports';
 import { reportRequestsApi } from '@api/reportRequests';
-import { openReportFile } from '@utils/downloadReport';
+import { downloadReportFile } from '@utils/downloadReport';
 import { extractApiError, formatDate } from '@utils';
 
 type Tab = 'reports' | 'requests';
@@ -33,12 +34,12 @@ export const MyReportsScreen: React.FC = () => {
     enabled: tab === 'requests',
   });
 
-  const handleOpen = async (fileUrl: string) => {
+  const handleDownload = async (fileUrl: string) => {
     setOpeningId(fileUrl);
     try {
-      await openReportFile(fileUrl);
+      await downloadReportFile(fileUrl);
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Could not open file', text2: err.message });
+      Toast.show({ type: 'error', text1: 'Could not download file', text2: err.message });
     } finally {
       setOpeningId(null);
     }
@@ -89,35 +90,52 @@ export const MyReportsScreen: React.FC = () => {
             contentContainerStyle={{ padding: 16, paddingBottom: 80, flexGrow: 1 }}
             refreshControl={<RefreshControl refreshing={refetchingReports} onRefresh={refetchReports} tintColor={COLORS.primary} />}
             ListEmptyComponent={<EmptyState icon="document-text-outline" title="No reports yet" description="Upload a report to get started." actionLabel="Upload Report" onAction={() => navigation.navigate('ReportUpload')} />}
-            renderItem={({ item }) => (
-              <Card variant="elevated" style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            renderItem={({ item }) => {
+              const sentToLabel = item.reportRequest
+                ? `Fulfills: ${item.reportRequest.title}`
+                : item.sentToAdmin
+                  ? `Sent to ${item.sentToAdmin.firstName} ${item.sentToAdmin.lastName}`
+                  : 'Sent to all admins';
+
+              return (
+                <View style={{
+                  backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
+                  marginBottom: 10, flexDirection: 'row', gap: 12,
+                  borderWidth: 1, borderColor: COLORS.border,
+                }}>
+                  <FileTypeBadge mimeType={item.fileMimeType} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 15 }}>{item.title}</Text>
-                    <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 2 }}>
+                    <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 15 }} numberOfLines={1}>{item.title}</Text>
+                    <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>
                       {item.fileName} · {formatDate(item.createdAt)}
                     </Text>
-                    {item.reportRequest && (
-                      <Text style={{ color: COLORS.info, fontSize: 11, marginTop: 4, fontWeight: '600' }}>
-                        Fulfills: {item.reportRequest.title}
-                      </Text>
-                    )}
+                    <Text style={{ color: COLORS.info, fontSize: 11, marginTop: 4, fontWeight: '600' }} numberOfLines={1}>
+                      {sentToLabel}
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', gap: 18, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border }}>
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate('ReportViewer', { fileUrl: item.fileUrl, fileName: item.fileName, fileMimeType: item.fileMimeType })}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                      >
+                        <Ionicons name="eye-outline" size={15} color={COLORS.primary} />
+                        <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '600' }}>View</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDownload(item.fileUrl)} disabled={openingId === item.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="download-outline" size={15} color={COLORS.textMuted} />
+                        <Text style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: '600' }}>
+                          {openingId === item.fileUrl ? 'Downloading…' : 'Download'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDelete(item.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="trash-outline" size={15} color={COLORS.error} />
+                        <Text style={{ color: COLORS.error, fontSize: 12, fontWeight: '600' }}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-                <View style={{ flexDirection: 'row', gap: 16, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border }}>
-                  <TouchableOpacity onPress={() => handleOpen(item.fileUrl)} disabled={openingId === item.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Ionicons name="open-outline" size={15} color={COLORS.primary} />
-                    <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '600' }}>
-                      {openingId === item.fileUrl ? 'Opening…' : 'Open'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(item.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Ionicons name="trash-outline" size={15} color={COLORS.error} />
-                    <Text style={{ color: COLORS.error, fontSize: 12, fontWeight: '600' }}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </Card>
-            )}
+              );
+            }}
           />
         )
       ) : (

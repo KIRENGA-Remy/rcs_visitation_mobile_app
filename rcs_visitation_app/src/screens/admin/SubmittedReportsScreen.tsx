@@ -4,41 +4,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
-import { Card } from '@components/common/Card';
 import { EmptyState } from '@components/common/EmptyState';
 import { LoadingScreen } from '@components/common/LoadingScreen';
 import { ScreenHeader } from '@components/common/ScreenHeader';
+import { FileTypeBadge } from '@components/common/FileTypeBadge';
 import { COLORS } from '@constants';
 import { officerReportsApi } from '@api/officerReports';
-import { openReportFile } from '@utils/downloadReport';
+import { downloadReportFile } from '@utils/downloadReport';
 import { formatDate } from '@utils';
-
-const FILE_ICONS: Record<string, string> = {
-  'application/pdf': 'document-text',
-  'application/msword': 'document',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'document',
-  'application/vnd.ms-excel': 'grid',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'grid',
-  'image/jpeg': 'image', 'image/png': 'image',
-};
 
 export const SubmittedReportsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [openingId, setOpeningId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['officer-reports', 'all'],
     queryFn: () => officerReportsApi.listAll({ limit: 50 }),
   });
 
-  const handleOpen = async (fileUrl: string) => {
-    setOpeningId(fileUrl);
+  const handleDownload = async (fileUrl: string) => {
+    setDownloadingId(fileUrl);
     try {
-      await openReportFile(fileUrl);
+      await downloadReportFile(fileUrl);
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Could not open file', text2: err.message });
+      Toast.show({ type: 'error', text1: 'Could not download file', text2: err.message });
     } finally {
-      setOpeningId(null);
+      setDownloadingId(null);
     }
   };
 
@@ -54,39 +45,53 @@ export const SubmittedReportsScreen: React.FC = () => {
           contentContainerStyle={{ padding: 16, paddingBottom: 80, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} />}
           ListEmptyComponent={<EmptyState icon="document-text-outline" title="No reports submitted yet" />}
-          renderItem={({ item }) => (
-            <Card variant="elevated" style={{ marginBottom: 10 }}>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={{
-                  width: 40, height: 40, borderRadius: 10, backgroundColor: `${COLORS.primary}12`,
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Ionicons name={(FILE_ICONS[item.fileMimeType] ?? 'document') as any} size={20} color={COLORS.primary} />
-                </View>
+          renderItem={({ item }) => {
+            const sentToLabel = item.reportRequest
+              ? `Fulfills: ${item.reportRequest.title}`
+              : item.sentToAdmin
+                ? `Sent to ${item.sentToAdmin.firstName} ${item.sentToAdmin.lastName}`
+                : 'Sent to all admins';
+
+            return (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('ReportViewer', { fileUrl: item.fileUrl, fileName: item.fileName, fileMimeType: item.fileMimeType })}
+                style={{
+                  backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
+                  marginBottom: 10, flexDirection: 'row', gap: 12,
+                  borderWidth: 1, borderColor: COLORS.border,
+                }}
+              >
+                <FileTypeBadge mimeType={item.fileMimeType} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 15 }}>{item.title}</Text>
-                  <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 2 }}>
+                  <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 15 }} numberOfLines={1}>{item.title}</Text>
+                  <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
                     {item.officer?.firstName} {item.officer?.lastName} · {formatDate(item.createdAt)}
                   </Text>
-                  {item.reportRequest && (
-                    <Text style={{ color: COLORS.info, fontSize: 11, marginTop: 2, fontWeight: '600' }}>
-                      Fulfills: {item.reportRequest.title}
-                    </Text>
-                  )}
+                  <Text style={{ color: COLORS.info, fontSize: 11, marginTop: 4, fontWeight: '600' }} numberOfLines={1}>
+                    {sentToLabel}
+                  </Text>
+
+                  <View style={{ flexDirection: 'row', gap: 18, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="eye-outline" size={15} color={COLORS.primary} />
+                      <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '600' }}>View</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation(); handleDownload(item.fileUrl); }}
+                      disabled={downloadingId === item.fileUrl}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    >
+                      <Ionicons name="download-outline" size={15} color={COLORS.textMuted} />
+                      <Text style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: '600' }}>
+                        {downloadingId === item.fileUrl ? 'Downloading…' : 'Download'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => handleOpen(item.fileUrl)}
-                disabled={openingId === item.fileUrl}
-                style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-              >
-                <Ionicons name="download-outline" size={16} color={COLORS.primary} />
-                <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '600' }}>
-                  {openingId === item.fileUrl ? 'Opening…' : 'Open / Download'}
-                </Text>
               </TouchableOpacity>
-            </Card>
-          )}
+            );
+          }}
         />
       )}
 
