@@ -15,11 +15,31 @@ export class PrisonerService {
     });
   }
 
-  async findAll(query: { page?: unknown; limit?: unknown; prisonId?: string; status?: string; search?: string }) {
+  /**
+   * `status` (ACTIVE/TRANSFERRED/RELEASED/RESTRICTED/DECEASED) and
+   * `visitingRestricted` (a boolean) are independent — a prisoner can be
+   * ACTIVE *and* visiting-restricted at the same time (e.g. disciplinary
+   * action while still held at the same facility), or TRANSFERRED and
+   * restricted, etc. Treating "Restricted" as if it were just another
+   * mutually-exclusive status value hides prisoners whose actual `status`
+   * is ACTIVE/TRANSFERRED but who are, in fact, restricted right now —
+   * exactly the bug where a restricted-but-ACTIVE prisoner showed under
+   * "Active" with a red Restricted badge, yet the "Restricted" tab itself
+   * returned nothing.
+   *
+   * So: `status` filters on the lifecycle enum as before, but the
+   * `restrictedOnly` param filters on the `visitingRestricted` boolean
+   * instead of trying to match a `status` value — these can be combined
+   * with each other freely.
+   */
+  async findAll(query: { page?: unknown; limit?: unknown; prisonId?: string; status?: string; restrictedOnly?: unknown; search?: string }) {
     const { page, limit, skip } = parsePagination(query);
     const where: any = {};
     if (query.prisonId) where.prisonId = query.prisonId;
-    if (query.status)   where.status   = query.status;
+    if (query.status && query.status !== 'RESTRICTED') where.status = query.status;
+    if (query.status === 'RESTRICTED' || query.restrictedOnly === 'true' || query.restrictedOnly === true) {
+      where.visitingRestricted = true;
+    }
     if (query.search) {
       where.OR = [
         { firstName:      { contains: query.search, mode: 'insensitive' } },
