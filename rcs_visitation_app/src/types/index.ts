@@ -284,6 +284,8 @@ export interface UserAdmin {
   status: UserStatus;
   nationalId?: string;
   createdAt: string;
+  assignedPrisonId?: string;
+  assignedPrison?: { id: string; name: string; code: string };
   visitorProfile?: VisitorProfileSummary;
 }
 

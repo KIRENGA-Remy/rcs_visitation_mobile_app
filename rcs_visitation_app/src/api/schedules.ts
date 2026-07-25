@@ -12,6 +12,21 @@ export const schedulesApi = {
     return res.data.data!;
   },
 
+  create: async (body: {
+    prisonId: string; date: string; startTime: string; endTime: string;
+    label?: string; maxCapacity: number; visitType?: string; notes?: string;
+  }): Promise<VisitSchedule> => {
+    const res = await client.post<ApiResponse<VisitSchedule>>('/schedules', body);
+    return res.data.data!;
+  },
+
+  update: async (id: string, body: {
+    startTime?: string; endTime?: string; label?: string; maxCapacity?: number; notes?: string;
+  }): Promise<VisitSchedule> => {
+    const res = await client.put<ApiResponse<VisitSchedule>>(`/schedules/${id}`, body);
+    return res.data.data!;
+  },
+
   cancel: async (id: string): Promise<void> => {
     await client.patch(`/schedules/${id}/cancel`);
   },

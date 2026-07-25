@@ -32,6 +32,12 @@ export const usersApi = {
     return res.data.data!;
   },
 
+  /** Assign (or unassign with prisonId: null) which prison an officer works at. */
+  assignPrison: async (id: string, prisonId: string | null) => {
+    const res = await client.patch<ApiResponse<UserAdmin>>(`/users/${id}/assign-prison`, { prisonId });
+    return res.data.data!;
+  },
+
   delete: async (id: string): Promise<void> => {
     await client.delete(`/users/${id}`);
   },
