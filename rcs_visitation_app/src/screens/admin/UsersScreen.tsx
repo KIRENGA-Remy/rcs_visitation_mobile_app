@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
 import {
   View, Text, FlatList, StatusBar, RefreshControl,
-  TouchableOpacity, TextInput, Alert
+  TouchableOpacity, TextInput, Alert, Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Avatar } from '@components/common/Avatar';
+import { Button } from '@components/common/Button';
 import { StatusBadge } from '@components/common/StatusBadge';
 import { LoadingScreen } from '@components/common/LoadingScreen';
 import { EmptyState } from '@components/common/EmptyState';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS, QUERY_KEYS } from '@constants';
 import { usersApi } from '@api/users';
+import { prisonsApi } from '@api/prisons';
 import { extractApiError } from '@utils';
+import type { UserAdmin } from '@types';
 
 const ROLE_TABS = [
   { label: 'All',     value: undefined },
@@ -29,6 +32,29 @@ export const UsersScreen: React.FC = () => {
   const [search, setSearch]   = useState('');
   const [role, setRole]       = useState<string | undefined>(undefined);
   const [searchText, setSearchText] = useState('');
+  const [assignTarget, setAssignTarget] = useState<UserAdmin | null>(null);
+  const [assigning, setAssigning] = useState(false);
+
+  const { data: prisonsData } = useQuery({
+    queryKey: ['prisons', 'all'],
+    queryFn: () => prisonsApi.list({ limit: 100 }),
+    enabled: !!assignTarget,
+  });
+
+  const handleAssignPrison = async (prisonId: string | null) => {
+    if (!assignTarget) return;
+    setAssigning(true);
+    try {
+      await usersApi.assignPrison(assignTarget.id, prisonId);
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.USERS });
+      Toast.show({ type: 'success', text1: prisonId ? 'Officer assigned' : 'Officer unassigned' });
+      setAssignTarget(null);
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: 'Assignment failed', text2: extractApiError(err) });
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: [...QUERY_KEYS.USERS, { role, search }],
@@ -141,6 +167,17 @@ export const UsersScreen: React.FC = () => {
                   <StatusBadge status={item.role} label={item.role.replace('_', ' ')} size="sm" />
                   <StatusBadge status={item.status} size="sm" />
                 </View>
+                {item.role === 'PRISON_OFFICER' && (
+                  <TouchableOpacity
+                    onPress={() => setAssignTarget(item)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}
+                  >
+                    <Ionicons name="business-outline" size={12} color={COLORS.primary} />
+                    <Text style={{ fontSize: 12, color: COLORS.primary, fontWeight: '600' }}>
+                      {item.assignedPrison?.name ?? 'Assign facility'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <TouchableOpacity
                 onPress={() => handleToggleStatus(item.id, item.status)}
@@ -160,6 +197,42 @@ export const UsersScreen: React.FC = () => {
           )}
         />
       )}
+
+      {/* Assign facility modal */}
+      <Modal visible={!!assignTarget} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: COLORS.overlay, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ backgroundColor: COLORS.white, borderRadius: 20, padding: 24, width: '88%', maxHeight: '75%' }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: COLORS.text, marginBottom: 4 }}>
+              Assign Facility
+            </Text>
+            <Text style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 14 }}>
+              {assignTarget?.firstName} {assignTarget?.lastName}
+            </Text>
+            <FlatList
+              data={prisonsData?.data ?? []}
+              keyExtractor={(p) => p.id}
+              style={{ maxHeight: 220, marginBottom: 12 }}
+              renderItem={({ item: p }) => (
+                <TouchableOpacity
+                  onPress={() => handleAssignPrison(p.id)}
+                  style={{
+                    padding: 12, borderRadius: 10, marginBottom: 6,
+                    backgroundColor: assignTarget?.assignedPrisonId === p.id ? `${COLORS.primary}15` : COLORS.surface,
+                    borderWidth: 1.5, borderColor: assignTarget?.assignedPrisonId === p.id ? COLORS.primary : COLORS.border,
+                  }}
+                >
+                  <Text style={{ fontWeight: '600', color: COLORS.text }}>{p.name}</Text>
+                  <Text style={{ fontSize: 12, color: COLORS.textMuted }}>{p.district}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Button title="Unassign" onPress={() => handleAssignPrison(null)} variant="outline" loading={assigning} style={{ flex: 1 }} />
+              <Button title="Close" onPress={() => setAssignTarget(null)} style={{ flex: 1 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
