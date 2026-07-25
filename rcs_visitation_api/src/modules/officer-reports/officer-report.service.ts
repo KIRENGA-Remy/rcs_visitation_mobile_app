@@ -96,7 +96,8 @@ class OfficerReportService {
   // ── Officer: create/upload a report ──────────────────────────────────────
   async createReport(officerId: string, meta: CreateOfficerReportMetaDto, file: Express.Multer.File) {
     const isImage = file.mimetype.startsWith('image/');
-    const upload = await cloudinaryService.uploadBuffer(file.buffer, 'officer-reports', isImage ? 'image' : 'auto');
+    const upload = await cloudinaryService.uploadBuffer(file.buffer, 'officer-reports', isImage ? 'image' : 'raw');
+    const sentToAdminId = meta.sentToAdminId || undefined; // normalise "" from multipart to undefined
 
     const report = await prisma.officerReport.create({
       data: {
@@ -105,6 +106,7 @@ class OfficerReportService {
         description: meta.description,
         visitLogId: meta.visitLogId,
         reportRequestId: meta.reportRequestId,
+        sentToAdminId: meta.reportRequestId ? undefined : sentToAdminId,
         fileName: file.originalname,
         fileUrl: upload.url,
         cloudinaryPublicId: upload.publicId,
@@ -113,7 +115,7 @@ class OfficerReportService {
       },
     });
 
-    await this.notifyRequestFulfilled(meta.reportRequestId);
+    await this.notifyReportSubmitted(report.id, meta.reportRequestId, sentToAdminId);
     return report;
   }
 
@@ -126,6 +128,8 @@ class OfficerReportService {
    * receive the actual bytes.
    */
   async createReportFromUrl(officerId: string, dto: CreateOfficerReportFromUrlDto) {
+    const sentToAdminId = dto.sentToAdminId ?? undefined;
+
     const report = await prisma.officerReport.create({
       data: {
         officerId,
@@ -133,6 +137,7 @@ class OfficerReportService {
         description: dto.description,
         visitLogId: dto.visitLogId,
         reportRequestId: dto.reportRequestId,
+        sentToAdminId: dto.reportRequestId ? undefined : sentToAdminId,
         fileName: dto.fileName,
         fileUrl: dto.fileUrl,
         cloudinaryPublicId: null,
@@ -141,24 +146,58 @@ class OfficerReportService {
       },
     });
 
-    await this.notifyRequestFulfilled(dto.reportRequestId);
+    await this.notifyReportSubmitted(report.id, dto.reportRequestId, sentToAdminId);
     return report;
   }
 
-  private async notifyRequestFulfilled(reportRequestId?: string) {
-    if (!reportRequestId) return;
-    const request = await prisma.reportRequest.update({
-      where: { id: reportRequestId },
-      data: { status: 'FULFILLED' },
+  /**
+   * Three cases, in priority order:
+   *  1. Fulfilling a specific ReportRequest — notify whoever made that
+   *     request, and mark it FULFILLED.
+   *  2. Self-initiated, but the officer picked one specific admin — notify
+   *     only that admin.
+   *  3. Self-initiated, no admin picked — broadcast to every admin, since
+   *     there's no formal "officer reports to admin X" hierarchy modelled
+   *     in this schema (unlike officer→prison assignment).
+   */
+  private async notifyReportSubmitted(reportId: string, reportRequestId?: string, sentToAdminId?: string) {
+    const report = await prisma.officerReport.findUnique({
+      where: { id: reportId },
+      include: { officer: { select: { firstName: true, lastName: true } } },
     });
-    try {
-      await notificationService.send({
-        userId: request.requestedByUserId,
-        type: 'REPORT_SUBMITTED',
-        title: 'Report Submitted',
-        body: `A report has been submitted for "${request.title}".`,
+    if (!report) return;
+    const officerName = `${report.officer.firstName} ${report.officer.lastName}`;
+
+    if (reportRequestId) {
+      const request = await prisma.reportRequest.update({
+        where: { id: reportRequestId },
+        data: { status: 'FULFILLED' },
       });
-    } catch { /* non-fatal — the submission itself already succeeded */ }
+      try {
+        await notificationService.send({
+          userId: request.requestedByUserId,
+          type: 'REPORT_SUBMITTED',
+          title: 'Report Submitted',
+          body: `${officerName} submitted a report for "${request.title}".`,
+        });
+      } catch { /* non-fatal — the submission itself already succeeded */ }
+      return;
+    }
+
+    const recipientIds = sentToAdminId
+      ? [sentToAdminId]
+      : (await prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } })).map(a => a.id);
+
+    await Promise.allSettled(
+      recipientIds.map((adminId) =>
+        notificationService.send({
+          userId: adminId,
+          type: 'REPORT_SUBMITTED',
+          title: 'New Report Submitted',
+          body: `${officerName} sent a report: "${report.title}".`,
+        })
+      )
+    );
   }
 
   async getById(id: string) {
@@ -167,6 +206,7 @@ class OfficerReportService {
       include: {
         officer: { select: { firstName: true, lastName: true, email: true } },
         reportRequest: { select: { title: true } },
+        sentToAdmin: { select: { firstName: true, lastName: true } },
       },
     });
   }
@@ -177,6 +217,10 @@ class OfficerReportService {
     const [reports, total] = await Promise.all([
       prisma.officerReport.findMany({
         where: { officerId }, skip, take: limit,
+        include: {
+          reportRequest: { select: { title: true } },
+          sentToAdmin: { select: { firstName: true, lastName: true } },
+        },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.officerReport.count({ where: { officerId } }),
@@ -193,7 +237,11 @@ class OfficerReportService {
     const [reports, total] = await Promise.all([
       prisma.officerReport.findMany({
         where, skip, take: limit,
-        include: { officer: { select: { firstName: true, lastName: true } } },
+        include: {
+          officer: { select: { firstName: true, lastName: true } },
+          reportRequest: { select: { title: true } },
+          sentToAdmin: { select: { firstName: true, lastName: true } },
+        },
         orderBy: { createdAt: 'desc' },
       }),
       prisma.officerReport.count({ where }),
