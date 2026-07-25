@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#1F5D3A"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.remy.rcsvisitation",
@@ -35,11 +37,15 @@
         "android.permission.ACCESS_NETWORK_STATE"
       ]
     },
-    "web": { "favicon": "./src/assets/images/favicon.png" },
+    "web": {
+      "favicon": "./src/assets/images/favicon.png"
+    },
     "plugins": [
       [
         "expo-camera",
-        { "cameraPermission": "Allow RCS Visitation to use camera for QR code scanning." }
+        {
+          "cameraPermission": "Allow RCS Visitation to use camera for QR code scanning."
+        }
       ],
       [
         "expo-notifications",
@@ -51,11 +57,14 @@
       ],
       [
         "expo-secure-store"
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "apiBaseUrl": "http://192.168.1.100:3000/api/v1",
-      "eas": { "projectId": "e860c81c-ab21-454f-b136-974c9b184ab1" }
+      "eas": {
+        "projectId": "e860c81c-ab21-454f-b136-974c9b184ab1"
+      }
     }
   }
 }
