@@ -128,7 +128,7 @@ export class ReportsService {
       totalVisitRequests, pendingRequests, approvedToday,
       todayCheckins, flaggedIncidents,
       totalUsers, totalVisitors,
-      totalPrisons,
+      totalPrisons, pendingContactRequests,
     ] = await Promise.all([
       prisma.prisoner.count({ where: prisonFilter }),
       prisma.prisoner.count({ where: { ...prisonFilter, status: 'ACTIVE' } }),
@@ -140,6 +140,9 @@ export class ReportsService {
       prisma.user.count(),
       prisma.user.count({ where: { role: 'VISITOR' } }),
       prisma.prison.count({ where: { isActive: true } }),
+      // Same "pending review" signal used by the contact-requests endpoints:
+      // isActive:false AND approvedByUserId:null == not yet reviewed.
+      prisma.approvedVisitorPrisoner.count({ where: { isActive: false, approvedByUserId: null } }),
     ]);
 
     return {
@@ -148,6 +151,7 @@ export class ReportsService {
       visitRequests:    { total: totalVisitRequests, pending: pendingRequests, approvedToday },
       todayCheckins,
       flaggedIncidents,
+      pendingContactRequests,
       users:            { total: totalUsers, visitors: totalVisitors },
     };
   }
