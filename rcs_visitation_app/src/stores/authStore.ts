@@ -44,7 +44,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, accessToken: null });
   },
 
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    // BUG FIX: this previously only updated in-memory state, never
+    // persisting to AsyncStorage. Since hydrate() on app relaunch reads the
+    // user object from AsyncStorage (last written at login time via
+    // setAuth), any profile edit made afterward — most visibly the profile
+    // photo — appeared to save successfully but silently reverted the next
+    // time the app was opened, because the stored copy was never updated.
+    AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user)).catch(() => {});
+    set({ user });
+  },
 
   setLanguage: async (lang) => {
     await AsyncStorage.setItem('rcs_language', lang);
@@ -83,3 +92,4 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
+
