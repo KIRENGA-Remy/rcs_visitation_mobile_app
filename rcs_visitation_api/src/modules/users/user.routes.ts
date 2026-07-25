@@ -3,7 +3,8 @@ import { userController } from './user.controller';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
-import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema, updatePushTokenSchema, updateMyProfileSchema, assignPrisonSchema } from './user.schema';
+import { authRateLimiter } from '../../middleware/rateLimiter';
+import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema, updatePushTokenSchema, updateMyProfileSchema, assignPrisonSchema, createOfficerSchema, completeSetupSchema } from './user.schema';
 
 const router = Router();
 
@@ -14,6 +15,14 @@ router.patch('/push-token', authenticate, validate(updatePushTokenSchema), userC
 // fields (nationalId, gender, dateOfBirth, profilePhoto, preferredLang).
 // Registered before '/:id' so it's never shadowed by the admin-only route.
 router.patch('/me', authenticate, validate(updateMyProfileSchema), userController.updateMe.bind(userController));
+
+// PUBLIC (unauthenticated) — the officer hasn't logged in yet at this point.
+// Rate-limited like login/register since it's an OTP-guessing surface.
+// Registered before '/:id' so 'complete-setup' is never matched as an :id.
+router.post('/complete-setup', authRateLimiter, validate(completeSetupSchema), userController.completeSetup.bind(userController));
+
+// POST /api/v1/users/officers → admin creates a Prison Officer account (OTP setup email sent)
+router.post('/officers', authenticate, authorize('ADMIN'), validate(createOfficerSchema), userController.createOfficer.bind(userController));
 
 // GET  /api/v1/users              → list all users (admin)
 router.get('/',      authenticate, authorize('ADMIN'), validate(listUsersQuerySchema, 'query'), userController.findAll.bind(userController));

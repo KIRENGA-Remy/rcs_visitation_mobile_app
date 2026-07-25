@@ -62,3 +62,25 @@ export type ListUsersQuery      = z.infer<typeof listUsersQuerySchema>;
 export type UpdatePushTokenDto  = z.infer<typeof updatePushTokenSchema>;
 export type UpdateMyProfileDto  = z.infer<typeof updateMyProfileSchema>;
 export type AssignPrisonDto     = z.infer<typeof assignPrisonSchema>;
+
+// Admin creates an officer account with no password — the officer sets
+// their own via the OTP-based setup flow (see completeSetupSchema).
+export const createOfficerSchema = z.object({
+  email:       z.string().email(),
+  phone:       z.string().regex(/^\+?[0-9]{10,15}$/, 'Invalid phone number'),
+  firstName:   z.string().min(2).max(50),
+  lastName:    z.string().min(2).max(50),
+  nationalId:  z.string().optional(),
+  assignedPrisonId: z.string().uuid().optional(),
+});
+
+export const completeSetupSchema = z.object({
+  email: z.string().email(),
+  otp:   z.string().length(6, 'Code must be 6 digits'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters')
+                .regex(/[A-Z]/, 'Must contain uppercase')
+                .regex(/[0-9]/, 'Must contain number'),
+});
+
+export type CreateOfficerDto  = z.infer<typeof createOfficerSchema>;
+export type CompleteSetupDto  = z.infer<typeof completeSetupSchema>;

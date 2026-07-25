@@ -1,4 +1,4 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { userService } from './user.service';
 import { sendSuccess, sendError } from '../../shared/utils/apiResponse';
 import { ValidationError, NotFoundError } from '../../shared/utils/errors';
@@ -44,6 +44,28 @@ export class UserController {
     try { sendSuccess(res, await userService.updateMe(req.user!.id, req.body), 'Profile updated'); }
     catch (err: any) {
       if (err.message?.includes('already registered')) { sendError(res, err.message, 409); return; }
+      next(err);
+    }
+  }
+
+  async createOfficer(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await userService.createOfficer(req.body);
+      sendSuccess(res, result, 'Officer account created', 201);
+    } catch (err: any) {
+      if (err.message?.includes('already registered')) { sendError(res, err.message, 409); return; }
+      next(err);
+    }
+  }
+
+  async completeSetup(req: Request, res: Response, next: NextFunction) {
+    try {
+      await userService.completeSetup(req.body);
+      sendSuccess(res, { success: true }, 'Account activated — you can now sign in');
+    } catch (err: any) {
+      if (err.message?.includes('Invalid') || err.message?.includes('expired')) {
+        sendError(res, err.message, 401); return;
+      }
       next(err);
     }
   }

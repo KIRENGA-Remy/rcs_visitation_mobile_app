@@ -1,8 +1,11 @@
 import { prisma } from '../../config/prisma';
-import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto, UpdateMyProfileDto, AssignPrisonDto } from './user.schema';
+import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto, UpdateMyProfileDto, AssignPrisonDto, CreateOfficerDto, CompleteSetupDto } from './user.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
 import { ValidationError, NotFoundError } from '../../shared/utils/errors';
+import { hashPassword, comparePassword } from '../../shared/utils/bcrypt';
+import { emailService } from '../../shared/services/email.service';
+import { randomBytes } from 'crypto';
 
 // Safe select — never return passwordHash
 const USER_SELECT = {
@@ -111,6 +114,82 @@ export class UserService {
       },
       select: USER_SELECT,
     });
+  }
+
+  /**
+   * Admin creates a Prison Officer account with no usable password — the
+   * officer sets their own via a one-time code emailed to them (see
+   * completeSetup). Free-of-cost delivery via Gmail SMTP (emailService).
+   */
+  async createOfficer(dto: CreateOfficerDto) {
+    const existing = await prisma.user.findFirst({ where: { OR: [{ email: dto.email }, { phone: dto.phone }] } });
+    if (existing) throw new Error('Email or phone is already registered');
+
+    // An unguessable, unusable placeholder — login is impossible until the
+    // officer completes setup and this gets overwritten with a real hash.
+    const placeholderHash = await hashPassword(randomBytes(32).toString('hex'));
+
+    const user = await prisma.user.create({
+      data: {
+        email: dto.email,
+        phone: dto.phone,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        nationalId: dto.nationalId,
+        assignedPrisonId: dto.assignedPrisonId,
+        role: 'PRISON_OFFICER',
+        status: 'ACTIVE',
+        passwordHash: placeholderHash,
+      },
+      select: USER_SELECT,
+    });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await hashPassword(otp); // reuse bcrypt — OTP is just a short-lived secret too
+    await prisma.passwordReset.create({
+      data: {
+        userId: user.id,
+        token: otpHash,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+      },
+    });
+
+    const emailResult = await emailService.sendOfficerSetupOtp(dto.email, dto.firstName, otp);
+
+    return {
+      user,
+      // Only surfaced to the admin if email delivery actually failed, so
+      // they have a fallback way to give the officer their code (e.g. by
+      // phone) instead of the account being stuck with no way to reach it.
+      emailSent: emailResult.success,
+      setupOtp: emailResult.success ? undefined : otp,
+    };
+  }
+
+  /**
+   * Officer (or any account created without a usable password) verifies
+   * their emailed OTP and sets their real password for the first time.
+   */
+  async completeSetup(dto: CompleteSetupDto) {
+    const user = await prisma.user.findUnique({ where: { email: dto.email } });
+    if (!user) throw new Error('Invalid code or email');
+
+    const pendingReset = await prisma.passwordReset.findFirst({
+      where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!pendingReset) throw new Error('Invalid or expired code');
+
+    const otpValid = await comparePassword(dto.otp, pendingReset.token);
+    if (!otpValid) throw new Error('Invalid or expired code');
+
+    const newHash = await hashPassword(dto.newPassword);
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { passwordHash: newHash, emailVerified: true } }),
+      prisma.passwordReset.update({ where: { id: pendingReset.id }, data: { usedAt: new Date() } }),
+    ]);
+
+    return { success: true };
   }
 
   async assignPrison(userId: string, dto: AssignPrisonDto) {
