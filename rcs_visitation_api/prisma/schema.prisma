@@ -581,9 +581,10 @@ model ReportRequest {
 // ============================================================
 // MODEL — OFFICER REPORT
 // A document an officer writes/uploads — either self-initiated or
-// fulfilling a ReportRequest. File itself lives on local disk (no cloud
-// storage configured in this project); this row stores the metadata and
-// path needed to serve it back through an authenticated download route.
+// fulfilling a ReportRequest. File lives on Cloudinary (free tier) — either
+// uploaded through the app (cloudinaryPublicId set) or a URL the officer
+// pasted directly from their own Cloudinary account (cloudinaryPublicId null,
+// since we don't own that asset and can't delete it on their behalf).
 // ============================================================
 
 model OfficerReport {
@@ -594,9 +595,14 @@ model OfficerReport {
   title           String
   description     String?
 
-  // File metadata — actual bytes live under uploads/officer-reports/ on disk
+  // File location — a Cloudinary secure_url (when the officer uploaded a
+  // file through the app) OR a URL the officer pasted directly (e.g. they
+  // already uploaded it to their own Cloudinary/Drive/etc). cloudinaryPublicId
+  // is only set for the former — needed to delete that asset later; null
+  // for a pasted external link, since we don't own that asset.
   fileName        String
-  filePath        String
+  fileUrl         String
+  cloudinaryPublicId String?
   fileMimeType    String
   fileSizeBytes   Int
 

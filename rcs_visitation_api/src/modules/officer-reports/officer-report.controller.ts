@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import fs from 'fs';
 import { officerReportService } from './officer-report.service';
 import { sendSuccess, sendError } from '../../shared/utils/apiResponse';
 import { AuthRequest } from '../../shared/types';
@@ -32,6 +31,13 @@ class OfficerReportController {
     try {
       if (!req.file) { sendError(res, 'A file is required', 422); return; }
       const report = await officerReportService.createReport(req.user!.id, req.body, req.file);
+      sendSuccess(res, report, 'Report submitted', 201);
+    } catch (err) { next(err); }
+  }
+
+  async createReportFromUrl(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const report = await officerReportService.createReportFromUrl(req.user!.id, req.body);
       sendSuccess(res, report, 'Report submitted', 201);
     } catch (err) { next(err); }
   }
@@ -88,18 +94,21 @@ class OfficerReportController {
    * publicly downloadable by anyone with the URL. This route re-checks
    * authentication and ownership/role on every request instead.
    */
+  /**
+   * Now that files live on Cloudinary (a real CDN URL) rather than local
+   * disk, there's nothing to stream — just redirect to the actual URL after
+   * the same access check as before. Kept as a route (rather than removed
+   * entirely) so any existing client still calling this exact path keeps
+   * working; new clients can just use the `fileUrl` already present on the
+   * report object returned by getById/getAllReports/myReports.
+   */
   async download(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const report = await officerReportService.getById(req.params.id);
       if (req.user!.role !== 'ADMIN' && report.officerId !== req.user!.id) {
         sendError(res, 'You do not have access to this report', 403); return;
       }
-      if (!fs.existsSync(report.filePath)) {
-        sendError(res, 'The report file is missing from storage', 404); return;
-      }
-      res.setHeader('Content-Type', report.fileMimeType);
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(report.fileName)}"`);
-      fs.createReadStream(report.filePath).pipe(res);
+      res.redirect(report.fileUrl);
     } catch (err) { next(err); }
   }
 }

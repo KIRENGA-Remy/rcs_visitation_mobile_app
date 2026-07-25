@@ -4,7 +4,7 @@ import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
 import { reportUpload } from './report-upload.middleware';
-import { updateOfficerReportSchema, createOfficerReportMetaSchema } from './officer-report.schema';
+import { updateOfficerReportSchema, createOfficerReportMetaSchema, createOfficerReportFromUrlSchema } from './officer-report.schema';
 
 const router = Router();
 
@@ -15,6 +15,16 @@ router.post(
   reportUpload.single('file'),
   validate(createOfficerReportMetaSchema),
   officerReportController.createReport.bind(officerReportController)
+);
+
+// POST /api/v1/officer-reports/from-url — officer submits a report by
+// pasting an existing link (their own Cloudinary account, Drive, etc.)
+// instead of uploading a file through the app. Registered before '/:id'.
+router.post(
+  '/from-url',
+  authenticate, authorize('PRISON_OFFICER'),
+  validate(createOfficerReportFromUrlSchema),
+  officerReportController.createReportFromUrl.bind(officerReportController)
 );
 
 // GET /api/v1/officer-reports/my — officer's own reports

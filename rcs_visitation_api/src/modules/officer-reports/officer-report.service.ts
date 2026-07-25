@@ -1,11 +1,31 @@
-import fs from 'fs';
 import { prisma } from '../../config/prisma';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
 import { notificationService } from '../notifications/notification.service';
+import { cloudinaryService } from '../../shared/services/cloudinary.service';
 import {
-  CreateReportRequestDto, UpdateOfficerReportDto, CreateOfficerReportMetaDto,
+  CreateReportRequestDto, UpdateOfficerReportDto, CreateOfficerReportMetaDto, CreateOfficerReportFromUrlDto,
 } from './officer-report.schema';
+
+/**
+ * Used only for the paste-a-URL path, where we never receive real bytes to
+ * inspect — a reasonable guess from the file extension for display
+ * purposes (e.g. which icon to show), not a guarantee.
+ */
+const guessMimeTypeFromFileName = (fileName: string): string => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    txt: 'text/plain',
+    jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    png: 'image/png',
+  };
+  return map[ext ?? ''] ?? 'application/octet-stream';
+};
 
 class OfficerReportService {
   // ── Admin: request a report from one officer, or broadcast to all ───────
@@ -75,6 +95,9 @@ class OfficerReportService {
 
   // ── Officer: create/upload a report ──────────────────────────────────────
   async createReport(officerId: string, meta: CreateOfficerReportMetaDto, file: Express.Multer.File) {
+    const isImage = file.mimetype.startsWith('image/');
+    const upload = await cloudinaryService.uploadBuffer(file.buffer, 'officer-reports', isImage ? 'image' : 'auto');
+
     const report = await prisma.officerReport.create({
       data: {
         officerId,
@@ -83,28 +106,59 @@ class OfficerReportService {
         visitLogId: meta.visitLogId,
         reportRequestId: meta.reportRequestId,
         fileName: file.originalname,
-        filePath: file.path,
+        fileUrl: upload.url,
+        cloudinaryPublicId: upload.publicId,
         fileMimeType: file.mimetype,
         fileSizeBytes: file.size,
       },
     });
 
-    if (meta.reportRequestId) {
-      const request = await prisma.reportRequest.update({
-        where: { id: meta.reportRequestId },
-        data: { status: 'FULFILLED' },
-      });
-      try {
-        await notificationService.send({
-          userId: request.requestedByUserId,
-          type: 'REPORT_SUBMITTED',
-          title: 'Report Submitted',
-          body: `A report has been submitted for "${request.title}".`,
-        });
-      } catch { /* non-fatal — the submission itself already succeeded */ }
-    }
-
+    await this.notifyRequestFulfilled(meta.reportRequestId);
     return report;
+  }
+
+  /**
+   * Alternative to uploading through the app — the officer already has the
+   * document hosted somewhere (their own Cloudinary account, Drive, etc.)
+   * and just pastes the link. We don't own that asset, so
+   * cloudinaryPublicId stays null (nothing for us to delete later) and
+   * fileMimeType/fileSizeBytes are best-effort guesses since we never
+   * receive the actual bytes.
+   */
+  async createReportFromUrl(officerId: string, dto: CreateOfficerReportFromUrlDto) {
+    const report = await prisma.officerReport.create({
+      data: {
+        officerId,
+        title: dto.title,
+        description: dto.description,
+        visitLogId: dto.visitLogId,
+        reportRequestId: dto.reportRequestId,
+        fileName: dto.fileName,
+        fileUrl: dto.fileUrl,
+        cloudinaryPublicId: null,
+        fileMimeType: guessMimeTypeFromFileName(dto.fileName),
+        fileSizeBytes: 0, // unknown — we never received the bytes
+      },
+    });
+
+    await this.notifyRequestFulfilled(dto.reportRequestId);
+    return report;
+  }
+
+  private async notifyRequestFulfilled(reportRequestId?: string) {
+    if (!reportRequestId) return;
+    const request = await prisma.reportRequest.update({
+      where: { id: reportRequestId },
+      data: { status: 'FULFILLED' },
+    });
+    try {
+      await notificationService.send({
+        userId: request.requestedByUserId,
+        type: 'REPORT_SUBMITTED',
+        title: 'Report Submitted',
+        body: `A report has been submitted for "${request.title}".`,
+      });
+    } catch { /* non-fatal — the submission itself already succeeded */ }
   }
 
   async getById(id: string) {
@@ -157,8 +211,13 @@ class OfficerReportService {
     const report = await prisma.officerReport.findUniqueOrThrow({ where: { id } });
     if (report.officerId !== officerId) throw new Error('You can only delete your own reports');
 
-    // Best-effort file cleanup — a failed unlink shouldn't block the DB delete
-    try { fs.unlinkSync(report.filePath); } catch { /* file may already be gone */ }
+    // Only clean up on Cloudinary if we actually uploaded this asset
+    // ourselves (cloudinaryPublicId is null for a pasted external link,
+    // since we don't own that asset and have no business deleting it).
+    if (report.cloudinaryPublicId) {
+      const resourceType = report.fileMimeType.startsWith('image/') ? 'image' : 'raw';
+      await cloudinaryService.deleteAsset(report.cloudinaryPublicId, resourceType);
+    }
 
     return prisma.officerReport.delete({ where: { id } });
   }

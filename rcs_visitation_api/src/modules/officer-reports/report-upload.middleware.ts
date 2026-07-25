@@ -1,18 +1,10 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { randomUUID } from 'crypto';
 
 /**
- * Local disk storage for officer report documents — there's no cloud/object
- * storage configured in this project (consistent with the same pragmatic
- * choice made for profile photos), so files live under uploads/officer-reports/
- * on the server itself and are served back through an authenticated
- * download route (officer-report.routes.ts), never as static public files.
+ * In-memory storage — the file buffer is uploaded directly to Cloudinary
+ * (cloudinary.service.ts) and never written to local disk at all, unlike
+ * the original design. Keeps the same allowed-type/size restrictions.
  */
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'officer-reports');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
   'application/msword',
@@ -26,16 +18,8 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB — generous for a scanned/photographed report
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${randomUUID()}${ext}`);
-  },
-});
-
 export const reportUpload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE_BYTES },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -45,5 +29,3 @@ export const reportUpload = multer({
     cb(null, true);
   },
 });
-
-export { UPLOAD_DIR };

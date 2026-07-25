@@ -19,6 +19,21 @@ export const createOfficerReportMetaSchema = z.object({
   reportRequestId: z.string().uuid().optional(),
 });
 
+/**
+ * Alternative to file upload — the officer already has the document hosted
+ * somewhere (their own Cloudinary account, Google Drive, etc.) and just
+ * pastes the link instead of uploading through the app.
+ */
+export const createOfficerReportFromUrlSchema = z.object({
+  title:           z.string().min(3).max(150),
+  description:     z.string().max(1000).optional(),
+  visitLogId:      z.string().uuid().optional(),
+  reportRequestId: z.string().uuid().optional(),
+  fileUrl:         z.string().url(),
+  fileName:        z.string().min(1).max(255),
+});
+
 export type CreateReportRequestDto    = z.infer<typeof createReportRequestSchema>;
 export type UpdateOfficerReportDto    = z.infer<typeof updateOfficerReportSchema>;
 export type CreateOfficerReportMetaDto = z.infer<typeof createOfficerReportMetaSchema>;
+export type CreateOfficerReportFromUrlDto = z.infer<typeof createOfficerReportFromUrlSchema>;
