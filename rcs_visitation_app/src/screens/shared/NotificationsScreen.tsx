@@ -1,17 +1,21 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
-  View, FlatList, StatusBar, RefreshControl, TouchableOpacity, Text
+  View, FlatList, StatusBar, RefreshControl, TouchableOpacity, Text, Alert
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 import { NotificationCard } from '@components/common/NotificationCard';
 import { LoadingScreen } from '@components/common/LoadingScreen';
 import { EmptyState } from '@components/common/EmptyState';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { Skeleton } from '@components/common/Skeleton';
-import { COLORS } from '@constants';
+import { COLORS, QUERY_KEYS } from '@constants';
 import { useNotifications, useMarkAllRead } from '@hooks/useNotifications';
 import { useTranslation } from '@hooks/useTranslation';
 import { notificationsApi } from '@api/notifications';
+import { extractApiError } from '@utils';
 
 const NotificationSkeleton: React.FC = () => (
   <View style={{
@@ -29,9 +33,11 @@ const NotificationSkeleton: React.FC = () => (
 
 export const NotificationsScreen: React.FC = () => {
   const navigation               = useNavigation();
+  const qc                       = useQueryClient();
   const { t }                    = useTranslation();
   const { data, isLoading, refetch, isRefetching } = useNotifications();
   const { mutate: markAllRead }  = useMarkAllRead();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleMarkRead = useCallback(async (id: string) => {
     try {
@@ -40,6 +46,53 @@ export const NotificationsScreen: React.FC = () => {
     } catch {}
   }, [refetch]);
 
+  const handleDelete = useCallback((id: string) => {
+    Alert.alert(t('delete_notification'), t('delete_notification_confirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete'),
+        style: 'destructive',
+        onPress: async () => {
+          setDeletingId(id);
+          try {
+            await notificationsApi.delete(id);
+            qc.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
+            refetch();
+          } catch (err: any) {
+            Toast.show({ type: 'error', text1: extractApiError(err) });
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+    ]);
+  }, [refetch, qc, t]);
+
+  const handleClearAll = useCallback(() => {
+    if (!data?.data?.length) return;
+    Alert.alert(
+      t('clear_all_notifications'),
+      t('clear_all_confirm'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('clear_all'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await notificationsApi.deleteAll();
+              qc.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
+              refetch();
+              Toast.show({ type: 'success', text1: t('all_cleared') });
+            } catch (err: any) {
+              Toast.show({ type: 'error', text1: extractApiError(err) });
+            }
+          },
+        },
+      ]
+    );
+  }, [refetch, qc, t, data?.data?.length]);
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.surface }}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
@@ -47,16 +100,26 @@ export const NotificationsScreen: React.FC = () => {
         title={t('notifications')}
         onBack={() => navigation.goBack()}
         rightElement={
-          <TouchableOpacity
-            onPress={() => markAllRead()}
-            accessibilityRole="button"
-            accessibilityLabel={t('mark_all_read')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={{ color: COLORS.white, fontSize: 13, fontWeight: '600' }}>
-              {t('mark_all_read')}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <TouchableOpacity
+              onPress={() => markAllRead()}
+              accessibilityRole="button"
+              accessibilityLabel={t('mark_all_read')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={{ color: COLORS.white, fontSize: 13, fontWeight: '600' }}>
+                {t('mark_all_read')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleClearAll}
+              accessibilityRole="button"
+              accessibilityLabel={t('clear_all')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="trash-outline" size={18} color={COLORS.white} />
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -84,10 +147,23 @@ export const NotificationsScreen: React.FC = () => {
               />
             }
             renderItem={({ item }) => (
-              <NotificationCard
-                notification={item}
-                onPress={() => handleMarkRead(item.id)}
-              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <NotificationCard
+                    notification={item}
+                    onPress={() => handleMarkRead(item.id)}
+                  />
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleDelete(item.id)}
+                  disabled={deletingId === item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('delete_notification')}
+                  style={{ padding: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={18} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              </View>
             )}
           />
         )

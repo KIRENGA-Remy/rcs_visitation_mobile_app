@@ -49,7 +49,7 @@ export const en = {
   my_contacts:     'Who I Can Visit',
   no_contacts:     'No Prisoner to visit yet',
   no_contacts_desc:'You have no approved prisoners to visit yet. Contact the prison administration to get approved.',
-    request_visit:          'Request to Visit',
+  request_visit:          'Request to Visit',
   request_visit_subtitle: 'Ask approval to visit a new prisoner',
   select_prison:          'Select Prison',
   select_prison_desc:     'Which prison is the prisoner held at?',
@@ -162,6 +162,13 @@ export const en = {
   // Notifications
   mark_all_read: 'Mark all read',
   no_notifications: 'No notifications',
+  delete:                  'Delete',
+  delete_notification:     'Delete Notification',
+  delete_notification_confirm: 'This cannot be undone.',
+  clear_all:               'Clear All',
+  clear_all_notifications: 'Clear All Notifications',
+  clear_all_confirm:       'This will permanently delete all of your notifications. This cannot be undone.',
+  all_cleared:             'All notifications cleared',
   up_to_date:    "You're all caught up!",
 
   // Profile

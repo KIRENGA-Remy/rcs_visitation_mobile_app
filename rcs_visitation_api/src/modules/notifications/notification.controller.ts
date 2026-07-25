@@ -42,8 +42,20 @@ export class NotificationController {
   }
 
   async delete(req: AuthRequest, res: Response, next: NextFunction) {
-    try { sendSuccess(res, await notificationService.delete(req.params.id), 'Notification deleted'); }
-    catch (err) { next(err); }
+    try {
+      await notificationService.delete(req.params.id, req.user!.id, req.user!.role);
+      sendSuccess(res, { success: true }, 'Notification deleted');
+    } catch (err: any) {
+      if (err.message?.includes('only delete your own')) { sendError(res, err.message, 403); return; }
+      next(err);
+    }
+  }
+
+  async deleteAll(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await notificationService.deleteAll(req.user!.id);
+      sendSuccess(res, result, 'All notifications deleted');
+    } catch (err) { next(err); }
   }
 }
 

@@ -19,4 +19,13 @@ export const notificationsApi = {
   markAllRead: async (): Promise<void> => {
     await client.patch('/notifications/mark-all-read');
   },
+
+  delete: async (id: string): Promise<void> => {
+    await client.delete(`/notifications/${id}`);
+  },
+
+  deleteAll: async (): Promise<{ deletedCount: number }> => {
+    const res = await client.delete<ApiResponse<{ deletedCount: number }>>('/notifications/all');
+    return res.data.data!;
+  },
 };

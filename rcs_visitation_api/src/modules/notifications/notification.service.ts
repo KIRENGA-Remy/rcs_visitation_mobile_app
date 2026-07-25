@@ -128,8 +128,25 @@ export class NotificationService {
   }
 
   // Admin: delete a notification
-  async delete(id: string) {
+  /**
+   * Was previously ADMIN-only, meaning a visitor or officer had no way to
+   * delete their own notifications at all — a real problem once someone
+   * accumulates many (e.g. a visitor with several visit-status updates).
+   * Now any authenticated user can delete their own notification; an admin
+   * can still delete any notification for moderation/cleanup.
+   */
+  async delete(id: string, requestorId: string, requestorRole: string) {
+    const notification = await prisma.notification.findUniqueOrThrow({ where: { id } });
+    if (notification.userId !== requestorId && requestorRole !== 'ADMIN') {
+      throw new Error('You can only delete your own notifications');
+    }
     return prisma.notification.delete({ where: { id } });
+  }
+
+  /** Deletes every notification belonging to the requesting user. */
+  async deleteAll(userId: string) {
+    const result = await prisma.notification.deleteMany({ where: { userId } });
+    return { deletedCount: result.count };
   }
 }
 

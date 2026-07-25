@@ -161,8 +161,15 @@ export const rw = {
 
   // Notifications
   mark_all_read: 'Soma byose',
-  no_notifications: 'Nta menyesha',
-  up_to_date:    'Nta mishya!',
+  no_notifications: 'Nt\'amamenyesha',
+  delete:                  'Siba',
+  delete_notification:     'Siba Imenyesha',
+  delete_notification_confirm: 'Ibi ntibishobora gusubizwa inyuma.',
+  clear_all:               'Siba Byose',
+  clear_all_notifications: 'Siba Amamenyesha Yose',
+  clear_all_confirm:       'Ibi birasiba burundu amamenyesha yawe yose. Ntibishobora gusubizwa inyuma.',
+  all_cleared:             'Amamenyesha yose yasibwe',
+  up_to_date:    'Nt\'amamenyesha ahari!',
 
   // Profile
   account_info:  'Amakuru ya Konti',
