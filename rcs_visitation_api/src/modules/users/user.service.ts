@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto, UpdateMyProfileDto } from './user.schema';
+import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto, UpdateMyProfileDto, AssignPrisonDto } from './user.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
 import { ValidationError, NotFoundError } from '../../shared/utils/errors';
@@ -12,6 +12,8 @@ const USER_SELECT = {
   emailVerified: true, phoneVerified: true,
   lastLoginAt: true, createdAt: true, updatedAt: true,
   expoPushToken: true,
+  assignedPrisonId: true,
+  assignedPrison: { select: { id: true, name: true, code: true } },
   visitorProfile: {
     select: {
       id: true, district: true, sector: true, cell: true,
@@ -107,6 +109,18 @@ export class UserService {
         ...dto,
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
       },
+      select: USER_SELECT,
+    });
+  }
+
+  async assignPrison(userId: string, dto: AssignPrisonDto) {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.role !== 'PRISON_OFFICER') {
+      throw new Error('Only prison officers can be assigned to a facility');
+    }
+    return prisma.user.update({
+      where: { id: userId },
+      data: { assignedPrisonId: dto.prisonId },
       select: USER_SELECT,
     });
   }

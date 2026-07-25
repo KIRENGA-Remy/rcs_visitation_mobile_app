@@ -48,6 +48,14 @@ export class UserController {
     }
   }
 
+  async assignPrison(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await userService.assignPrison(req.params.id, req.body), 'Officer assignment updated'); }
+    catch (err: any) {
+      if (err.message?.includes('Only prison officers')) { sendError(res, err.message, 400); return; }
+      next(err);
+    }
+  }
+
   async updatePushToken(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { expoPushToken } = req.body;

@@ -26,6 +26,10 @@ export const updatePushTokenSchema = z.object({
     ),
 });
 
+// Self-service update — deliberately excludes role, status, email: those
+// require ADMIN (see updateUserRoleSchema / updateUserStatusSchema above).
+// This exists so a user who registered without a National ID (optional at
+// signup) can add one later, e.g. before their first "request to visit".
 export const updateMyProfileSchema = z.object({
   firstName:    z.string().min(2).max(50).optional(),
   lastName:     z.string().min(2).max(50).optional(),
@@ -33,6 +37,11 @@ export const updateMyProfileSchema = z.object({
   nationalId:   z.string().min(4).max(30).optional(),
   gender:       z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
   dateOfBirth:  z.string().datetime().optional(),
+  // Accepts either a real hosted URL or a base64 data URI — there's no
+  // cloud/object storage configured in this backend, so the pragmatic path
+  // for now is storing the image directly as a data URI in this column.
+  // A real deployment should swap this for actual file upload + storage
+  // and keep only a URL here.
   profilePhoto: z.string().refine(
     (v) => v.startsWith('http://') || v.startsWith('https://') || v.startsWith('data:image/'),
     'Must be a valid URL or image data URI'
@@ -40,8 +49,16 @@ export const updateMyProfileSchema = z.object({
   preferredLang:z.enum(['rw', 'en']).optional(),
 });
 
+// Admin assigns/unassigns which prison a PRISON_OFFICER works at — this is
+// what scopes schedule-change notifications to the right officers.
+// prisonId: null explicitly un-assigns the officer.
+export const assignPrisonSchema = z.object({
+  prisonId: z.string().uuid().nullable(),
+});
+
 export type UpdateUserRoleDto   = z.infer<typeof updateUserRoleSchema>;
 export type UpdateUserStatusDto = z.infer<typeof updateUserStatusSchema>;
 export type ListUsersQuery      = z.infer<typeof listUsersQuerySchema>;
 export type UpdatePushTokenDto  = z.infer<typeof updatePushTokenSchema>;
 export type UpdateMyProfileDto  = z.infer<typeof updateMyProfileSchema>;
+export type AssignPrisonDto     = z.infer<typeof assignPrisonSchema>;

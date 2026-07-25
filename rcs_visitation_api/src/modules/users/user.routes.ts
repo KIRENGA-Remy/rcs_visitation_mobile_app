@@ -3,7 +3,7 @@ import { userController } from './user.controller';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
-import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema, updatePushTokenSchema, updateMyProfileSchema } from './user.schema';
+import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema, updatePushTokenSchema, updateMyProfileSchema, assignPrisonSchema } from './user.schema';
 
 const router = Router();
 
@@ -26,6 +26,9 @@ router.put('/:id/role',   authenticate, authorize('ADMIN'), validate(updateUserR
 
 // PUT  /api/v1/users/:id/status   → suspend / reactivate (admin)
 router.put('/:id/status', authenticate, authorize('ADMIN'), validate(updateUserStatusSchema), userController.updateStatus.bind(userController));
+
+// PATCH /api/v1/users/:id/assign-prison → assign/unassign an officer's facility (admin)
+router.patch('/:id/assign-prison', authenticate, authorize('ADMIN'), validate(assignPrisonSchema), userController.assignPrison.bind(userController));
 
 // DELETE /api/v1/users/:id        → soft delete (admin)
 router.delete('/:id', authenticate, authorize('ADMIN'), userController.softDelete.bind(userController));
