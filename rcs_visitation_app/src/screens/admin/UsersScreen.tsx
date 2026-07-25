@@ -233,6 +233,22 @@ export const UsersScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* FAB — create a new officer account */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('CreateOfficer')}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Create new officer account"
+        style={{
+          position: 'absolute', bottom: 24, right: 20,
+          width: 56, height: 56, borderRadius: 28,
+          backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+          shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
+        }}
+      >
+        <Ionicons name="person-add" size={24} color={COLORS.white} />
+      </TouchableOpacity>
     </View>
   );
 };
