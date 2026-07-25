@@ -34,15 +34,15 @@ const getTransporter = (): nodemailer.Transporter => {
 };
 
 export const emailService = {
-  async sendOfficerSetupOtp(to: string, firstName: string, otp: string) {
+  async sendOfficerSetupOtp(to: string, firstName: string, otp: string, roleLabel: string = 'Prison Officer') {
     try {
       await getTransporter().sendMail({
         from: `"RCS Visitation" <${env.EMAIL_USER}>`,
         to,
-        subject: 'Set Up Your RCS Visitation Officer Account',
+        subject: `Set Up Your RCS Visitation ${roleLabel} Account`,
         text:
           `Hi ${firstName},\n\n` +
-          `An administrator has created a Prison Officer account for you on RCS Visitation.\n\n` +
+          `An administrator has created a ${roleLabel} account for you on RCS Visitation.\n\n` +
           `Your one-time setup code is: ${otp}\n\n` +
           `Open the app, go to "Activate Account", and enter this code along with ` +
           `a password of your choosing to finish setting up your account. ` +
@@ -50,7 +50,7 @@ export const emailService = {
           `If you weren't expecting this, you can ignore this email.`,
         html:
           `<p>Hi ${firstName},</p>` +
-          `<p>An administrator has created a Prison Officer account for you on <strong>RCS Visitation</strong>.</p>` +
+          `<p>An administrator has created a ${roleLabel} account for you on <strong>RCS Visitation</strong>.</p>` +
           `<p>Your one-time setup code is:</p>` +
           `<p style="font-size:28px;font-weight:700;letter-spacing:4px;">${otp}</p>` +
           `<p>Open the app, go to <strong>Activate Account</strong>, and enter this code along with ` +
@@ -63,7 +63,7 @@ export const emailService = {
       // Never let an email delivery failure block the admin's action that
       // triggered it (creating the account) — log and let the caller decide
       // whether to surface a warning, same pattern as notificationService.
-      logger.error({ message: 'Failed to send officer setup email', error: err.message, to });
+      logger.error({ message: 'Failed to send account setup email', error: err.message, to });
       return { success: false, error: err.message };
     }
   },
