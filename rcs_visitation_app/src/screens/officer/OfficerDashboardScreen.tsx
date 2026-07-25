@@ -75,6 +75,7 @@ export const OfficerDashboardScreen: React.FC = () => {
     { label: t('check_out'),   icon: 'exit',           screen: 'PendingRequests', params: { initialTab: 'CHECKED_IN' }, color: COLORS.info },
     { label: 'Contact Requests', icon: 'person-add',  screen: 'ContactRequests', color: COLORS.accent },
     { label: t('visit_logs'), icon: 'document-text',  screen: 'VisitLogs',       color: COLORS.success },
+    { label: 'My Reports',    icon: 'folder-open',     screen: 'MyReports',       color: COLORS.info },
     { label: t('profile'),    icon: 'person-circle',  screen: 'Profile',         color: COLORS.textMuted },
   ], [t]);
 
