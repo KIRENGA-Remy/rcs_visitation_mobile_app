@@ -6,6 +6,7 @@ import { PrisonersScreen }      from '@screens/admin/PrisonersScreen';
 import { PrisonerDetailScreen } from '@screens/admin/PrisonerDetailScreen';
 import { PrisonerFormScreen }   from '@screens/admin/PrisonerFormScreen';
 import { SchedulesScreen }      from '@screens/admin/SchedulesScreen';
+import { ScheduleFormScreen }   from '@screens/admin/ScheduleFormScreen';
 import { ReportsScreen }        from '@screens/admin/ReportsScreen';
 import { VisitLogsScreen }      from '@screens/officer/VisitLogsScreen';
 import { ContactRequestsScreen }from '@screens/officer/ContactRequestsScreen';
@@ -29,6 +30,7 @@ export const AdminNavigator: React.FC = () => (
     <Stack.Screen name="PrisonerDetail" component={PrisonerDetailScreen} />
     <Stack.Screen name="PrisonerForm"   component={PrisonerFormScreen} />
     <Stack.Screen name="Schedules"      component={SchedulesScreen} />
+    <Stack.Screen name="ScheduleForm"   component={ScheduleFormScreen} />
     <Stack.Screen name="Reports"        component={ReportsScreen} />
     <Stack.Screen name="AdminLogs"      component={VisitLogsScreen} />
     <Stack.Screen name="ContactRequests" component={ContactRequestsScreen} />

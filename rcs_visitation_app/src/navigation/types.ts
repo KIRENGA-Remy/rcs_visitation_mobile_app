@@ -52,6 +52,7 @@ export type AdminStackParamList = {
   PrisonerDetail: { id: string };
   PrisonerForm:   { id?: string } | undefined;
   Schedules:      undefined;
+  ScheduleForm:   { id?: string } | undefined;
   Reports:        undefined;
   AdminLogs:      undefined;
   ContactRequests:undefined;
