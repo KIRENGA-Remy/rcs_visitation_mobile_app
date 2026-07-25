@@ -144,6 +144,16 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={{ color: COLORS.primary, fontWeight: '700' }}>{t('register')}</Text>
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ActivateAccount')}
+            style={{ alignItems: 'center', paddingVertical: 4 }}
+            accessibilityRole="button"
+          >
+            <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>
+              Have a setup code from an admin? <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Activate Account</Text>
+            </Text>
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
