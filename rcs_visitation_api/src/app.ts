@@ -22,6 +22,8 @@ import notificationRoutes   from './modules/notifications/notification.routes';
 import verificationRoutes   from './modules/verification/verification.routes';
 import settingsRoutes       from './modules/settings/settings.routes';
 import reportsRoutes        from './modules/reports/reports.routes';
+import officerReportRoutes  from './modules/officer-reports/officer-report.routes';
+import reportRequestRoutes  from './modules/officer-reports/report-request.routes';
 
 const app = express();
 
@@ -67,6 +69,8 @@ app.use(`${API}/notifications`,   notificationRoutes);
 app.use(`${API}/verification`,    verificationRoutes);
 app.use(`${API}/settings`,        settingsRoutes);
 app.use(`${API}/reports`,         reportsRoutes);
+app.use(`${API}/officer-reports`, officerReportRoutes);
+app.use(`${API}/report-requests`, reportRequestRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
