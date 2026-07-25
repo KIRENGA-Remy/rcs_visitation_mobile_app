@@ -64,7 +64,10 @@ export const SchedulesScreen: React.FC = () => {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} />}
           ListEmptyComponent={<EmptyState icon="calendar-outline" title="No schedules found" description="No visit time slots have been created yet." />}
           renderItem={({ item }) => (
-            <View style={{
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('ScheduleForm', { id: item.id })}
+              style={{
               backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
               marginBottom: 10, shadowColor: '#000',
               shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
@@ -116,10 +119,26 @@ export const SchedulesScreen: React.FC = () => {
                   <Text style={{ color: COLORS.error, fontSize: 13, fontWeight: '600' }}>Cancel This Slot</Text>
                 </TouchableOpacity>
               )}
-            </View>
+            </TouchableOpacity>
           )}
         />
       )}
+
+      {/* FAB — create a new schedule */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('ScheduleForm', {})}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Create new schedule"
+        style={{
+          position: 'absolute', bottom: 24, right: 20,
+          width: 56, height: 56, borderRadius: 28,
+          backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+          shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
+        }}
+      >
+        <Ionicons name="add" size={28} color={COLORS.white} />
+      </TouchableOpacity>
     </View>
   );
 };
