@@ -10,6 +10,7 @@ const router = Router();
 // Visitor: submit and view own requests
 router.post('/',      authenticate, authorize('VISITOR'), validate(createVisitRequestSchema), visitRequestController.create.bind(visitRequestController));
 router.get('/my',     authenticate, authorize('VISITOR'), visitRequestController.myRequests.bind(visitRequestController));
+router.get('/my/stats', authenticate, authorize('VISITOR'), visitRequestController.myStats.bind(visitRequestController));
 
 // All roles: get single request
 router.get('/:id',    authenticate, visitRequestController.getById.bind(visitRequestController));

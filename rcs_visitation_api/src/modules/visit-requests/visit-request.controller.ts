@@ -32,6 +32,10 @@ export class VisitRequestController {
       sendSuccess(res, requests, 'Your visit requests', 200, pagination);
     } catch (err) { next(err); }
   }
+  async myStats(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await visitRequestService.getMyStats(req.user!.id)); }
+    catch (err) { next(err); }
+  }
   async byPrison(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { requests, pagination } = await visitRequestService.findByPrison(req.params.prisonId, req.query as any);

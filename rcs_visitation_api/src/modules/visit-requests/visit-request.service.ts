@@ -91,6 +91,10 @@ export class VisitRequestService {
       },
     });
 
+    // Notify the visitor — this was previously missing entirely: approving
+    // or rejecting a request updated the database but never told the
+    // visitor anything happened, so their Notifications screen stayed
+    // empty regardless of real activity on their requests.
     try {
       await notificationService.send({
         userId: updated.visitorProfile.userId,
@@ -135,6 +139,33 @@ export class VisitRequestService {
       });
       return updated;
     });
+  }
+
+  /**
+   * Real aggregate counts for the visitor's own dashboard — deliberately a
+   * separate endpoint rather than having the client count client-side from
+   * whatever page of results it happens to have fetched (e.g. the 5 most
+   * recent requests), which undercounts anything beyond that page.
+   */
+  async getMyStats(visitorUserId: string) {
+    const visitorProfile = await prisma.visitorProfile.findUnique({ where: { userId: visitorUserId } });
+    if (!visitorProfile) {
+      return { pending: 0, approved: 0, rejected: 0, completed: 0, pendingContactRequests: 0 };
+    }
+
+    const [pending, approved, rejected, completed, pendingContactRequests] = await Promise.all([
+      prisma.visitRequest.count({ where: { visitorProfileId: visitorProfile.id, status: 'PENDING' } }),
+      prisma.visitRequest.count({ where: { visitorProfileId: visitorProfile.id, status: 'APPROVED' } }),
+      prisma.visitRequest.count({ where: { visitorProfileId: visitorProfile.id, status: 'REJECTED' } }),
+      prisma.visitRequest.count({ where: { visitorProfileId: visitorProfile.id, status: 'COMPLETED' } }),
+      // A visitor's own contact requests still awaiting review — this is
+      // what was previously invisible anywhere on the visitor's dashboard.
+      prisma.approvedVisitorPrisoner.count({
+        where: { visitorProfileId: visitorProfile.id, isActive: false, approvedByUserId: null },
+      }),
+    ]);
+
+    return { pending, approved, rejected, completed, pendingContactRequests };
   }
 
   async findByVisitor(visitorUserId: string, query: { page?: unknown; limit?: unknown; status?: string }) {
