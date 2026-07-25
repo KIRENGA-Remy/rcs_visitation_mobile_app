@@ -46,6 +46,18 @@ export const VisitorHomeScreen: React.FC = () => {
     staleTime: 30 * 1000,
   });
 
+  // Real aggregate counts across ALL of the visitor's requests — the stat
+  // row previously derived these by filtering only the 5 most recently
+  // fetched requests, which undercounted anything beyond that page and
+  // never reflected pending contact requests at all (a visitor who'd only
+  // submitted a "request to visit" — not yet an actual visit booking — saw
+  // every stat sitting at 0 with no indication their submission existed).
+  const { data: stats24, refetch: refetchStats } = useQuery({
+    queryKey: ['visit-requests', 'my-stats'],
+    queryFn: visitRequestsApi.myStats,
+    staleTime: 30 * 1000,
+  });
+
   // Memoised to avoid recalculating on every render
   const activeRequest = useMemo(
     () => requestsData?.data?.find(r => ['PENDING','APPROVED','CHECKED_IN'].includes(r.status)),
@@ -53,10 +65,15 @@ export const VisitorHomeScreen: React.FC = () => {
   );
 
   const stats = useMemo(() => [
-    { label: t('my_requests'), value: requestsData?.data?.length ?? 0,                                icon: 'checkmark-done', color: COLORS.success },
-    { label: t('PENDING'),     value: requestsData?.data?.filter(r => r.status === 'PENDING').length ?? 0, icon: 'time',      color: COLORS.warning },
-    { label: t('APPROVED'),    value: requestsData?.data?.filter(r => r.status === 'APPROVED').length ?? 0, icon: 'checkmark-circle', color: COLORS.primary },
-  ], [requestsData?.data, language]);
+    // Pending = pending visit-request bookings + pending contact requests
+    // (requests to be approved to visit someone at all) combined into one
+    // "things awaiting review" figure, since both represent the visitor
+    // waiting to hear back about something they submitted.
+    { label: t('PENDING'),         value: (stats24?.pending ?? 0) + (stats24?.pendingContactRequests ?? 0), icon: 'time',            color: COLORS.warning },
+    { label: t('completed_visits'),value: stats24?.completed ?? 0,  icon: 'checkmark-done',   color: COLORS.success },
+    { label: t('APPROVED'),        value: stats24?.approved ?? 0,   icon: 'checkmark-circle', color: COLORS.primary },
+    { label: t('rejected'),        value: stats24?.rejected ?? 0,   icon: 'close-circle',     color: COLORS.error   },
+  ], [stats24, language]);
 
   const quickActions = useMemo(() => [
     { label: t('book_visit'),   icon: 'add-circle',  color: COLORS.primary, screen: 'BookVisit' },
@@ -138,7 +155,7 @@ export const VisitorHomeScreen: React.FC = () => {
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); refetchStats(); }} tintColor={COLORS.primary} />}
       >
         {/* Active visit banner */}
         {activeRequest && (
