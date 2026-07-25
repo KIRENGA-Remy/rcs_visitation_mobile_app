@@ -6,7 +6,7 @@ import { notificationService } from '../notifications/notification.service';
 
 export class ScheduleService {
   async create(dto: CreateScheduleDto, createdByUserId: string) {
-    return prisma.visitSchedule.create({
+    const schedule = await prisma.visitSchedule.create({
       data: {
         ...dto,
         date:      new Date(dto.date),
@@ -15,6 +15,47 @@ export class ScheduleService {
         createdByUserId,
       },
     });
+
+    // Previously only update/cancel notified anyone — a brand new slot
+    // being opened is exactly the kind of thing an assigned officer (and
+    // any visitor watching for openings) should hear about too.
+    await this.notifyScheduleChange(
+      schedule,
+      'New Visit Schedule Created',
+      `A new visit slot${schedule.label ? ` (${schedule.label})` : ''} has been opened.`,
+    );
+
+    return schedule;
+  }
+
+  /**
+   * Admin/Officer management listing — deliberately does NOT apply the
+   * status:'OPEN' + future-only filtering that `findAvailable` (used by
+   * visitors browsing bookable slots) always applies. An admin managing
+   * schedules needs to see and act on EVERY schedule — past, cancelled,
+   * full, closed — not just the ones currently bookable. Without this
+   * separate method, a schedule the admin just created could be
+   * completely invisible to them the moment its status or time fell
+   * outside "OPEN and in the future", even though it exists and is
+   * perfectly valid to view/edit/cancel.
+   */
+  async findAllForAdmin(query: { prisonId?: string; status?: string; page?: unknown; limit?: unknown }) {
+    const { page, limit, skip } = parsePagination(query);
+    const where: any = {};
+    if (query.prisonId) where.prisonId = query.prisonId;
+    if (query.status)   where.status   = query.status;
+
+    const [schedules, total] = await Promise.all([
+      prisma.visitSchedule.findMany({
+        where, skip, take: limit,
+        include: { prison: { select: { name: true, code: true } } },
+        orderBy: { startTime: 'desc' }, // most recent/upcoming first
+      }),
+      prisma.visitSchedule.count({ where }),
+    ]);
+
+    const enriched = schedules.map(s => ({ ...s, availableSlots: s.maxCapacity - s.currentBookings }));
+    return { schedules: enriched, pagination: buildPagination(page, limit, total) };
   }
 
   async update(id: string, dto: UpdateScheduleDto) {

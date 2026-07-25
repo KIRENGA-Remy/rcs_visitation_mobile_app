@@ -9,6 +9,9 @@ const router = Router();
 
 // All authenticated users can view available schedules
 router.get('/',      authenticate, scheduleController.findAvailable.bind(scheduleController));
+// Admin/Officer management view — must be registered before '/:id' or
+// Express would try to match 'admin' as the :id param.
+router.get('/admin', authenticate, authorize('ADMIN', 'PRISON_OFFICER'), scheduleController.findAllForAdmin.bind(scheduleController));
 router.get('/:id',   authenticate, scheduleController.findById.bind(scheduleController));
 
 // Only admin/officer manage schedules

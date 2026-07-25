@@ -20,7 +20,7 @@ export const SchedulesScreen: React.FC = () => {
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: QUERY_KEYS.SCHEDULES,
-    queryFn:  () => schedulesApi.list({ limit: 50 }),
+    queryFn:  () => schedulesApi.listForAdmin({ limit: 50 }),
     staleTime: 30 * 1000,
   });
 

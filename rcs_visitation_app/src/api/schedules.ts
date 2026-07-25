@@ -7,6 +7,18 @@ export const schedulesApi = {
     return { data: res.data.data!, pagination: res.data.pagination };
   },
 
+  /**
+   * Admin/Officer management listing — unlike `list()` (built for visitors
+   * browsing bookable slots), this shows every schedule regardless of
+   * status or whether its time has passed, since an admin needs to see and
+   * manage cancelled/past/full schedules too, not just currently-bookable
+   * ones.
+   */
+  listForAdmin: async (params?: { prisonId?: string; status?: string; page?: number; limit?: number }) => {
+    const res = await client.get<ApiResponse<VisitSchedule[]>>('/schedules/admin', { params });
+    return { data: res.data.data!, pagination: res.data.pagination };
+  },
+
   get: async (id: string): Promise<VisitSchedule> => {
     const res = await client.get<ApiResponse<VisitSchedule>>(`/schedules/${id}`);
     return res.data.data!;

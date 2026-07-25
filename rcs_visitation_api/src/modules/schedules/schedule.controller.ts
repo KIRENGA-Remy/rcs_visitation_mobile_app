@@ -23,6 +23,12 @@ export class ScheduleController {
       sendSuccess(res, schedules, 'Available schedules retrieved', 200, pagination);
     } catch (err) { next(err); }
   }
+  async findAllForAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { schedules, pagination } = await scheduleService.findAllForAdmin(req.query as any);
+      sendSuccess(res, schedules, 'Schedules retrieved', 200, pagination);
+    } catch (err) { next(err); }
+  }
   async findById(req: AuthRequest, res: Response, next: NextFunction) {
     try { sendSuccess(res, await scheduleService.findById(req.params.id)); }
     catch (err) { next(err); }
