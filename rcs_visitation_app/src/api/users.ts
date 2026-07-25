@@ -38,6 +38,20 @@ export const usersApi = {
     return res.data.data!;
   },
 
+  /** Admin creates a Prison Officer account; officer sets their own password via emailed OTP. */
+  createOfficer: async (body: {
+    email: string; phone: string; firstName: string; lastName: string;
+    nationalId?: string; assignedPrisonId?: string;
+  }): Promise<{ user: UserAdmin; emailSent: boolean; setupOtp?: string }> => {
+    const res = await client.post<ApiResponse<{ user: UserAdmin; emailSent: boolean; setupOtp?: string }>>('/users/officers', body);
+    return res.data.data!;
+  },
+
+  /** Public — officer enters their emailed OTP + chosen password to activate their account. */
+  completeSetup: async (email: string, otp: string, newPassword: string): Promise<void> => {
+    await client.post('/users/complete-setup', { email, otp, newPassword });
+  },
+
   delete: async (id: string): Promise<void> => {
     await client.delete(`/users/${id}`);
   },
