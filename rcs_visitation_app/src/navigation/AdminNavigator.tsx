@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AdminDashboardScreen } from '@screens/admin/AdminDashboardScreen';
 import { UsersScreen }          from '@screens/admin/UsersScreen';
+import { CreateOfficerScreen }  from '@screens/admin/CreateOfficerScreen';
 import { PrisonersScreen }      from '@screens/admin/PrisonersScreen';
 import { PrisonerDetailScreen } from '@screens/admin/PrisonerDetailScreen';
 import { PrisonerFormScreen }   from '@screens/admin/PrisonerFormScreen';
@@ -26,6 +27,7 @@ export const AdminNavigator: React.FC = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
     <Stack.Screen name="Users"          component={UsersScreen} />
+    <Stack.Screen name="CreateOfficer"  component={CreateOfficerScreen} />
     <Stack.Screen name="Prisoners"      component={PrisonersScreen} />
     <Stack.Screen name="PrisonerDetail" component={PrisonerDetailScreen} />
     <Stack.Screen name="PrisonerForm"   component={PrisonerFormScreen} />

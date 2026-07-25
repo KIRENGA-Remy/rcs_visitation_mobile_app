@@ -3,6 +3,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 export type AuthStackParamList = {
   Login:    undefined;
   Register: undefined;
+  ActivateAccount: undefined;
 };
 
 export type VisitorTabParamList = {
@@ -50,6 +51,7 @@ export type OfficerStackParamList = {
 export type AdminStackParamList = {
   AdminDashboard: undefined;
   Users:          undefined;
+  CreateOfficer:  undefined;
   Prisoners:      undefined;
   PrisonerDetail: { id: string };
   PrisonerForm:   { id?: string } | undefined;
