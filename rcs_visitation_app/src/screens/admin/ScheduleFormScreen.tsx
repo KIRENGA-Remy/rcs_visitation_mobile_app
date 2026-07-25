@@ -94,6 +94,21 @@ export const ScheduleFormScreen: React.FC = () => {
     }
   }, [existing]);
 
+  /** Merges the calendar day from `date` with the time-of-day from a
+   *  separately-picked time value — `startTime`/`endTime` are edited via
+   *  their own time-only pickers, so on their own they still carry
+   *  whatever day they were initialized with (today), not the day chosen
+   *  in the date picker. Without this, creating a schedule for a future
+   *  date while only touching the time pickers silently submitted a
+   *  timestamp still dated today — which, if that time-of-day had already
+   *  passed, landed in the past and made the schedule invisible under the
+   *  "future schedules only" default filter. */
+  const combineDateAndTime = (day: Date, time: Date): Date => {
+    const combined = new Date(day);
+    combined.setHours(time.getHours(), time.getMinutes(), 0, 0);
+    return combined;
+  };
+
   const handleSave = async () => {
     const capacity = parseInt(maxCapacity, 10);
     if (!capacity || capacity < 1) {
@@ -104,7 +119,11 @@ export const ScheduleFormScreen: React.FC = () => {
       Toast.show({ type: 'error', text1: 'Select a prison' });
       return;
     }
-    if (endTime <= startTime) {
+
+    const combinedStart = isEdit ? startTime : combineDateAndTime(date, startTime);
+    const combinedEnd   = isEdit ? endTime   : combineDateAndTime(date, endTime);
+
+    if (combinedEnd <= combinedStart) {
       Toast.show({ type: 'error', text1: 'End time must be after start time' });
       return;
     }
@@ -113,8 +132,8 @@ export const ScheduleFormScreen: React.FC = () => {
     try {
       if (isEdit) {
         await schedulesApi.update(editId!, {
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString(),
+          startTime: combinedStart.toISOString(),
+          endTime: combinedEnd.toISOString(),
           label: label || undefined,
           maxCapacity: capacity,
           notes: notes || undefined,
@@ -125,14 +144,15 @@ export const ScheduleFormScreen: React.FC = () => {
         await schedulesApi.create({
           prisonId,
           date: date.toISOString().split('T')[0],
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString(),
+          startTime: combinedStart.toISOString(),
+          endTime: combinedEnd.toISOString(),
           label: label || undefined,
           maxCapacity: capacity,
           visitType,
           notes: notes || undefined,
         });
         Toast.show({ type: 'success', text1: 'Schedule created' });
+
       }
       qc.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULES });
       navigation.goBack();
