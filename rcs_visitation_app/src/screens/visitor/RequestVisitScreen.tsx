@@ -61,6 +61,15 @@ export const RequestVisitScreen: React.FC<Props> = ({ navigation }) => {
     enabled: !!selectedPrisonId && step === 2,
   });
 
+  // Used to prefill relationship/notes if the visitor previously submitted
+  // (and is now resubmitting, e.g. after a rejection) a request for this
+  // exact prisoner — without this, returning to this screen always showed
+  // a blank relationship picker even though they'd already answered it once.
+  const { data: myContactRequests } = useQuery({
+    queryKey: ['visitors', 'me', 'contact-requests'],
+    queryFn: visitorsApi.getMyContactRequests,
+  });
+
   const needsNationalId = !user?.nationalId;
   const canSubmit = !!selectedPrisoner && !!relationship && (!needsNationalId || nationalId.trim().length >= 4);
 
@@ -84,12 +93,17 @@ export const RequestVisitScreen: React.FC<Props> = ({ navigation }) => {
       });
 
       qc.invalidateQueries({ queryKey: QUERY_KEYS.MY_VISITOR });
+      qc.invalidateQueries({ queryKey: ['visitors', 'me', 'contact-requests'] });
       Toast.show({
         type: 'success',
         text1: t('request_submitted'),
         text2: t('request_submitted_desc'),
       });
-      navigation.goBack();
+      // Land on the dashboard, not back on BookVisit/Contacts (wherever the
+      // visitor happened to enter this flow from) — a submitted request is
+      // a "done, come back later" moment, and the dashboard's Pending stat
+      // now reflects it immediately.
+      navigation.navigate('VisitorTabs', { screen: 'Home' });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: t('request_failed'), text2: extractApiError(err) });
     } finally {
@@ -175,7 +189,14 @@ export const RequestVisitScreen: React.FC<Props> = ({ navigation }) => {
               prisonersData?.data?.map((p) => (
                 <TouchableOpacity
                   key={p.id}
-                  onPress={() => { setSelectedPrisoner(p); setStep(3); }}
+                  onPress={() => {
+                    setSelectedPrisoner(p);
+                    const priorRequest = myContactRequests?.find((r) => r.prisoner.id === p.id);
+                    if (priorRequest) {
+                      setRelationship(priorRequest.relationship);
+                    }
+                    setStep(3);
+                  }}
                   activeOpacity={0.85}
                   disabled={p.visitingRestricted}
                   style={{

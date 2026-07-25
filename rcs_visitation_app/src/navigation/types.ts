@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AuthStackParamList = {
   Login:    undefined;
   Register: undefined;
@@ -11,7 +13,7 @@ export type VisitorTabParamList = {
 };
 
 export type VisitorStackParamList = {
-  VisitorTabs: undefined;
+  VisitorTabs: NavigatorScreenParams<VisitorTabParamList> | undefined;
   BookVisit:      undefined;
   RequestDetail:  { id: string };
   Notifications:  undefined;
