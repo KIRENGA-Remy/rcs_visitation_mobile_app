@@ -74,6 +74,25 @@ export const createOfficerSchema = z.object({
   assignedPrisonId: z.string().uuid().optional(),
 });
 
+/**
+ * Admin creates ANOTHER admin account — deliberately a fully separate
+ * schema/service/controller/route from createOfficer, not a shared
+ * "createStaff(role)" endpoint with a role selector. A single generic form
+ * where "role" is just a dropdown value is exactly the kind of design that
+ * lets a misclick or a bug grant admin privileges to what was meant to be
+ * an officer account (or vice versa). Keeping them as two independent code
+ * paths — each hardcoding its own role server-side, with no role field in
+ * either request body at all — makes that class of mistake structurally
+ * impossible rather than just "unlikely".
+ */
+export const createAdminSchema = z.object({
+  email:      z.string().email(),
+  phone:      z.string().regex(/^\+?[0-9]{10,15}$/, 'Invalid phone number'),
+  firstName:  z.string().min(2).max(50),
+  lastName:   z.string().min(2).max(50),
+  nationalId: z.string().optional(),
+});
+
 export const completeSetupSchema = z.object({
   email: z.string().email(),
   otp:   z.string().length(6, 'Code must be 6 digits'),
@@ -83,4 +102,5 @@ export const completeSetupSchema = z.object({
 });
 
 export type CreateOfficerDto  = z.infer<typeof createOfficerSchema>;
+export type CreateAdminDto    = z.infer<typeof createAdminSchema>;
 export type CompleteSetupDto  = z.infer<typeof completeSetupSchema>;

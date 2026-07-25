@@ -4,7 +4,7 @@ import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
 import { authRateLimiter } from '../../middleware/rateLimiter';
-import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema, updatePushTokenSchema, updateMyProfileSchema, assignPrisonSchema, createOfficerSchema, completeSetupSchema } from './user.schema';
+import { updateUserRoleSchema, updateUserStatusSchema, listUsersQuerySchema, updatePushTokenSchema, updateMyProfileSchema, assignPrisonSchema, createOfficerSchema, createAdminSchema, completeSetupSchema } from './user.schema';
 
 const router = Router();
 
@@ -23,6 +23,11 @@ router.post('/complete-setup', authRateLimiter, validate(completeSetupSchema), u
 
 // POST /api/v1/users/officers → admin creates a Prison Officer account (OTP setup email sent)
 router.post('/officers', authenticate, authorize('ADMIN'), validate(createOfficerSchema), userController.createOfficer.bind(userController));
+
+// POST /api/v1/users/admins → admin creates ANOTHER admin account — a fully
+// separate endpoint from /officers, not a shared "create staff with role"
+// route, so there's no role field anywhere for a mistake to target.
+router.post('/admins', authenticate, authorize('ADMIN'), validate(createAdminSchema), userController.createAdmin.bind(userController));
 
 // GET  /api/v1/users              → list all users (admin)
 router.get('/',      authenticate, authorize('ADMIN'), validate(listUsersQuerySchema, 'query'), userController.findAll.bind(userController));

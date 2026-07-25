@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto, UpdateMyProfileDto, AssignPrisonDto, CreateOfficerDto, CompleteSetupDto } from './user.schema';
+import { UpdateUserRoleDto, UpdateUserStatusDto, ListUsersQuery, UpdatePushTokenDto, UpdateMyProfileDto, AssignPrisonDto, CreateOfficerDto, CreateAdminDto, CompleteSetupDto } from './user.schema';
 import { parsePagination } from '../../shared/utils/pagination';
 import { buildPagination } from '../../shared/utils/apiResponse';
 import { ValidationError, NotFoundError } from '../../shared/utils/errors';
@@ -65,7 +65,15 @@ export class UserService {
     });
   }
 
-  async updateStatus(id: string, dto: UpdateUserStatusDto) {
+  async updateStatus(id: string, dto: UpdateUserStatusDto, requestorId: string) {
+    if (id === requestorId) {
+      throw new Error('You cannot suspend or deactivate your own account');
+    }
+    const target = await prisma.user.findUniqueOrThrow({ where: { id } });
+    if (target.role === 'ADMIN') {
+      throw new Error('Admin accounts cannot be suspended or deactivated by another admin');
+    }
+
     return prisma.user.update({
       where: { id },
       data:  { status: dto.status },
@@ -170,6 +178,52 @@ export class UserService {
    * Officer (or any account created without a usable password) verifies
    * their emailed OTP and sets their real password for the first time.
    */
+  /**
+   * Admin creates ANOTHER admin account. Intentionally a separate method
+   * from createOfficer (not createStaff(role: 'ADMIN' | 'PRISON_OFFICER'))
+   * — see the comment on createAdminSchema for why. Shares the same
+   * underlying OTP-via-email mechanism (still the only free, already-wired
+   * delivery path) but is its own independent code path end to end.
+   */
+  async createAdmin(dto: CreateAdminDto) {
+    const existing = await prisma.user.findFirst({ where: { OR: [{ email: dto.email }, { phone: dto.phone }] } });
+    if (existing) throw new Error('Email or phone is already registered');
+
+    const placeholderHash = await hashPassword(randomBytes(32).toString('hex'));
+
+    const user = await prisma.user.create({
+      data: {
+        email: dto.email,
+        phone: dto.phone,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        nationalId: dto.nationalId,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        passwordHash: placeholderHash,
+      },
+      select: USER_SELECT,
+    });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await hashPassword(otp);
+    await prisma.passwordReset.create({
+      data: {
+        userId: user.id,
+        token: otpHash,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+
+    const emailResult = await emailService.sendOfficerSetupOtp(dto.email, dto.firstName, otp, 'Admin');
+
+    return {
+      user,
+      emailSent: emailResult.success,
+      setupOtp: emailResult.success ? undefined : otp,
+    };
+  }
+
   async completeSetup(dto: CompleteSetupDto) {
     const user = await prisma.user.findUnique({ where: { email: dto.email } });
     if (!user) throw new Error('Invalid code or email');

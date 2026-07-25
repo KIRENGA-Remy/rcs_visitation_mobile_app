@@ -26,8 +26,13 @@ export class UserController {
   }
 
   async updateStatus(req: AuthRequest, res: Response, next: NextFunction) {
-    try { sendSuccess(res, await userService.updateStatus(req.params.id, req.body), 'User status updated'); }
-    catch (err) { next(err); }
+    try { sendSuccess(res, await userService.updateStatus(req.params.id, req.body, req.user!.id), 'User status updated'); }
+    catch (err: any) {
+      if (err.message?.includes('cannot suspend or deactivate your own') || err.message?.includes('cannot be suspended or deactivated')) {
+        sendError(res, err.message, 403); return;
+      }
+      next(err);
+    }
   }
 
   async softDelete(req: AuthRequest, res: Response, next: NextFunction) {
@@ -52,6 +57,16 @@ export class UserController {
     try {
       const result = await userService.createOfficer(req.body);
       sendSuccess(res, result, 'Officer account created', 201);
+    } catch (err: any) {
+      if (err.message?.includes('already registered')) { sendError(res, err.message, 409); return; }
+      next(err);
+    }
+  }
+
+  async createAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await userService.createAdmin(req.body);
+      sendSuccess(res, result, 'Admin account created', 201);
     } catch (err: any) {
       if (err.message?.includes('already registered')) { sendError(res, err.message, 409); return; }
       next(err);
