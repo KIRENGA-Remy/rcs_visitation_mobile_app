@@ -14,6 +14,7 @@ import { LoadingScreen } from '@components/common/LoadingScreen';
 import { EmptyState } from '@components/common/EmptyState';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS, QUERY_KEYS } from '@constants';
+import { useAuthStore } from '@stores/authStore';
 import { usersApi } from '@api/users';
 import { prisonsApi } from '@api/prisons';
 import { extractApiError } from '@utils';
@@ -29,6 +30,7 @@ const ROLE_TABS = [
 export const UsersScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const qc = useQueryClient();
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const [search, setSearch]   = useState('');
   const [role, setRole]       = useState<string | undefined>(undefined);
   const [searchText, setSearchText] = useState('');
@@ -179,20 +181,25 @@ export const UsersScreen: React.FC = () => {
                   </TouchableOpacity>
                 )}
               </View>
-              <TouchableOpacity
-                onPress={() => handleToggleStatus(item.id, item.status)}
-                style={{
-                  padding: 8,
-                  borderRadius: 8,
-                  backgroundColor: item.status === 'ACTIVE' ? '#FEF2F2' : '#F0FDF4',
-                }}
-              >
-                <Ionicons
-                  name={item.status === 'ACTIVE' ? 'ban-outline' : 'checkmark-circle-outline'}
-                  size={20}
-                  color={item.status === 'ACTIVE' ? COLORS.error : COLORS.success}
-                />
-              </TouchableOpacity>
+              {/* Hidden (not just disabled) for admin rows and the current
+                 admin's own row — the backend now rejects both cases, so
+                 showing a control that would only ever error isn't useful. */}
+              {item.role !== 'ADMIN' && item.id !== currentUserId && (
+                <TouchableOpacity
+                  onPress={() => handleToggleStatus(item.id, item.status)}
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    backgroundColor: item.status === 'ACTIVE' ? '#FEF2F2' : '#F0FDF4',
+                  }}
+                >
+                  <Ionicons
+                    name={item.status === 'ACTIVE' ? 'ban-outline' : 'checkmark-circle-outline'}
+                    size={20}
+                    color={item.status === 'ACTIVE' ? COLORS.error : COLORS.success}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
           )}
         />
@@ -234,12 +241,22 @@ export const UsersScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* FAB — create a new officer account */}
+      {/* FAB — choose which SEPARATE creation flow to start; this is just a
+         convenience entry point, each option still has its own dedicated
+         screen and backend endpoint (see CreateOfficerScreen/CreateAdminScreen). */}
       <TouchableOpacity
-        onPress={() => navigation.navigate('CreateOfficer')}
+        onPress={() => Alert.alert(
+          'Create Account',
+          'What kind of account do you want to create?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Prison Officer', onPress: () => navigation.navigate('CreateOfficer') },
+            { text: 'Admin', onPress: () => navigation.navigate('CreateAdmin') },
+          ]
+        )}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel="Create new officer account"
+        accessibilityLabel="Create new account"
         style={{
           position: 'absolute', bottom: 24, right: 20,
           width: 56, height: 56, borderRadius: 28,
