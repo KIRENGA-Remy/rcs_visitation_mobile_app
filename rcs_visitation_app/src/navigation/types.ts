@@ -33,6 +33,8 @@ export type OfficerStackParamList = {
   OfficerDashboard:   undefined;
   PendingRequests:    { initialTab?: 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED' } | undefined;
   ContactRequests:    undefined;
+  MyReports:          undefined;
+  ReportUpload:       { reportRequestId?: string; presetTitle?: string } | undefined;
   ReviewRequest:      { id: string };
   ScanQR:             undefined;
   CheckIn:            { visitRequestId: string };
@@ -61,6 +63,8 @@ export type AdminStackParamList = {
   Reports:        undefined;
   AdminLogs:      undefined;
   ContactRequests:undefined;
+  SubmittedReports: undefined;
+  RequestReport:    undefined;
   Notifications:  undefined;
   Profile:        undefined;
   Help:           undefined;
