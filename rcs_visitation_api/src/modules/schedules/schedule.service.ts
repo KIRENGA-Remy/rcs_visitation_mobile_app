@@ -92,6 +92,32 @@ export class ScheduleService {
     return updated;
   }
 
+  /**
+   * Reopens a CANCELLED (or FULL/CLOSED) schedule back to OPEN. Previously
+   * there was no way back at all — cancelling a slot by mistake, or editing
+   * its time/capacity afterward, left `status` permanently stuck, since
+   * `update()` never touches status and there was no dedicated undo action.
+   */
+  async reopen(id: string) {
+    const schedule = await prisma.visitSchedule.findUniqueOrThrow({ where: { id } });
+    if (schedule.status === 'OPEN') {
+      throw new Error('This schedule is already open');
+    }
+    if (schedule.endTime < new Date()) {
+      throw new Error('Cannot reopen a schedule whose time slot has already passed');
+    }
+
+    const updated = await prisma.visitSchedule.update({ where: { id }, data: { status: 'OPEN' } });
+
+    await this.notifyScheduleChange(
+      updated,
+      'Visit Schedule Reopened',
+      `A visit slot${updated.label ? ` (${updated.label})` : ''} that was previously cancelled is now open again.`,
+    );
+
+    return updated;
+  }
+
   async cancel(id: string) {
     return prisma.$transaction(async (tx) => {
       // Cancel the schedule

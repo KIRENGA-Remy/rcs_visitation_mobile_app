@@ -18,5 +18,6 @@ router.get('/:id',   authenticate, scheduleController.findById.bind(scheduleCont
 router.post('/',          authenticate, authorize('ADMIN', 'PRISON_OFFICER'), validate(createScheduleSchema), scheduleController.create.bind(scheduleController));
 router.put('/:id',         authenticate, authorize('ADMIN', 'PRISON_OFFICER'), validate(updateScheduleSchema), scheduleController.update.bind(scheduleController));
 router.patch('/:id/cancel', authenticate, authorize('ADMIN', 'PRISON_OFFICER'), scheduleController.cancel.bind(scheduleController));
+router.patch('/:id/reopen', authenticate, authorize('ADMIN', 'PRISON_OFFICER'), scheduleController.reopen.bind(scheduleController));
 
 export default router;

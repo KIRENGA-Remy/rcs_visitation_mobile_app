@@ -37,6 +37,15 @@ export class ScheduleController {
     try { sendSuccess(res, await scheduleService.cancel(req.params.id), 'Schedule cancelled'); }
     catch (err) { next(err); }
   }
+  async reopen(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await scheduleService.reopen(req.params.id), 'Schedule reopened'); }
+    catch (err: any) {
+      if (err.message?.includes('already open') || err.message?.includes('already passed')) {
+        sendError(res, err.message, 400); return;
+      }
+      next(err);
+    }
+  }
 }
 
 export const scheduleController = new ScheduleController();
