@@ -21,6 +21,11 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Uploaded officer report files — real user data, never commit
+uploads/
+.env.local
+.env.*.local
+
 # Build files
 *.apk
 *.aab
