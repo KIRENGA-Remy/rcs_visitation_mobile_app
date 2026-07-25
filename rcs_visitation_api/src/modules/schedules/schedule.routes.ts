@@ -3,7 +3,7 @@ import { scheduleController } from './schedule.controller';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { validate } from '../../middleware/validate';
-import { createScheduleSchema } from './schedule.schema';
+import { createScheduleSchema, updateScheduleSchema } from './schedule.schema';
 
 const router = Router();
 
@@ -13,6 +13,7 @@ router.get('/:id',   authenticate, scheduleController.findById.bind(scheduleCont
 
 // Only admin/officer manage schedules
 router.post('/',          authenticate, authorize('ADMIN', 'PRISON_OFFICER'), validate(createScheduleSchema), scheduleController.create.bind(scheduleController));
+router.put('/:id',         authenticate, authorize('ADMIN', 'PRISON_OFFICER'), validate(updateScheduleSchema), scheduleController.update.bind(scheduleController));
 router.patch('/:id/cancel', authenticate, authorize('ADMIN', 'PRISON_OFFICER'), scheduleController.cancel.bind(scheduleController));
 
 export default router;

@@ -1,12 +1,21 @@
 import { Response, NextFunction } from 'express';
 import { scheduleService } from './schedule.service';
-import { sendSuccess } from '../../shared/utils/apiResponse';
+import { sendSuccess, sendError } from '../../shared/utils/apiResponse';
 import { AuthRequest } from '../../shared/types';
 
 export class ScheduleController {
   async create(req: AuthRequest, res: Response, next: NextFunction) {
     try { sendSuccess(res, await scheduleService.create(req.body, req.user!.id), 'Schedule created', 201); }
     catch (err) { next(err); }
+  }
+  async update(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await scheduleService.update(req.params.id, req.body), 'Schedule updated'); }
+    catch (err: any) {
+      if (err.message?.includes('Cannot reduce capacity') || err.message?.includes('End time must be after')) {
+        sendError(res, err.message, 400); return;
+      }
+      next(err);
+    }
   }
   async findAvailable(req: AuthRequest, res: Response, next: NextFunction) {
     try {

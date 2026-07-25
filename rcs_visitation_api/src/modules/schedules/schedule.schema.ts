@@ -26,5 +26,14 @@ export const bulkCreateScheduleSchema = z.object({
   label:        z.string().optional(),
 });
 
+export const updateScheduleSchema = z.object({
+  startTime:   z.string().datetime().optional(),
+  endTime:     z.string().datetime().optional(),
+  label:       z.string().optional(),
+  maxCapacity: z.number().int().positive().optional(),
+  notes:       z.string().optional(),
+});
+
 export type CreateScheduleDto     = z.infer<typeof createScheduleSchema>;
+export type UpdateScheduleDto     = z.infer<typeof updateScheduleSchema>;
 export type BulkCreateScheduleDto = z.infer<typeof bulkCreateScheduleSchema>;
