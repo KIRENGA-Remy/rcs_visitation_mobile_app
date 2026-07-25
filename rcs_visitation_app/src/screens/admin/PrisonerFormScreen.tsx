@@ -183,7 +183,7 @@ export const PrisonerFormScreen: React.FC = () => {
               </View>
             </ScrollView>
 
-            <Input label="Prisoner Number *" value={prisonerNumber} onChangeText={setPrisonerNumber} leftIcon="barcode-outline" placeholder="e.g. RCS-2026-0042" />
+            <Input label="Prisoner Number *" value={prisonerNumber} onChangeText={setPrisonerNumber} leftIcon="barcode-outline" placeholder="e.g. KGL-2026-0001" />
 
             <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 8 }}>Gender *</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
