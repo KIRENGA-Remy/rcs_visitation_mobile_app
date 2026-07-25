@@ -20,7 +20,7 @@ const VISITOR_SELECT = {
     where: { isActive: true },
     select: {
       id: true, relationship: true, approvedAt: true,
-      prisoner: { select: { id: true, prisonerNumber: true, firstName: true, lastName: true, prison: { select: { name: true, code: true } } } },
+      prisoner: { select: { id: true, prisonerNumber: true, firstName: true, lastName: true, prison: { select: { id: true, name: true, code: true } } } },
     },
   },
 } as const;
@@ -120,9 +120,19 @@ export class VisitorService {
     return { requests, pagination: buildPagination(page, limit, total) };
   }
 
+  // ── Visitor self-service contact requests ────────────────────────────────
+  // A visitor may not yet be approved to visit anyone. Rather than only
+  // letting Admin/Officer create the ApprovedVisitorPrisoner link
+  // (linkPrisoner, above), this lets a VISITOR request one themselves —
+  // reusing the same model with `approvedByUserId: null` as the "pending
+  // review" signal, so no schema migration is required. `notes` doubles as
+  // the storage for a rejection reason when a request is turned down.
+
   async requestContact(userId: string, dto: RequestContactDto) {
     const profile = await prisma.visitorProfile.findUniqueOrThrow({ where: { userId } });
 
+    // Confirm the prisoner exists and is actually visitable before
+    // accepting the request, rather than only failing at review time.
     const prisoner = await prisma.prisoner.findUniqueOrThrow({ where: { id: dto.prisonerId } });
     if (prisoner.status !== 'ACTIVE') {
       throw new Error('This prisoner is not currently available for visits');

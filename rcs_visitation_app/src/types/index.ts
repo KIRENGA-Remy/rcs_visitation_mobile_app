@@ -112,7 +112,7 @@ export interface ApprovedPrisoner {
     prisonerNumber: string;
     firstName: string;
     lastName: string;
-    prison: { name: string; code: string };
+    prison: { id: string; name: string; code: string };
   };
 }
 

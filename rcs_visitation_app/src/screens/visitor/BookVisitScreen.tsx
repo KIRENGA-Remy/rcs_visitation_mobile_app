@@ -37,17 +37,21 @@ export const BookVisitScreen: React.FC<Props> = ({ navigation }) => {
   });
 
   const selectedPrisoner = profile?.approvedPrisoners?.find(p => p.prisoner.id === selectedPrisonerId);
-  const prisonId = selectedPrisoner?.prisoner.prison
-    ? profile?.approvedPrisoners?.find(ap => ap.prisoner.id === selectedPrisonerId)?.prisoner.id
-    : undefined;
+  const prisonId = selectedPrisoner?.prisoner.prison.id;
 
   const { data: schedulesData, isLoading: schedulesLoading } = useQuery({
-    queryKey: [...QUERY_KEYS.SCHEDULES, selectedPrisonerId],
-    queryFn: () => {
-      const ap = profile?.approvedPrisoners?.find(p => p.prisoner.id === selectedPrisonerId);
-      return ap ? schedulesApi.list({ page: 1, limit: 20 }) : Promise.resolve({ data: [], pagination: undefined });
-    },
-    enabled: !!selectedPrisonerId,
+    queryKey: [...QUERY_KEYS.SCHEDULES, selectedPrisonerId, prisonId],
+    // BUG FIX: this previously called schedulesApi.list({ page: 1, limit: 20 })
+    // with NO prisonId at all, and separately computed `prisonId` incorrectly
+    // (assigning the prisoner's id instead of the prisoner's prison's id,
+    // and that value was never even used). Since the visitor-facing
+    // /schedules endpoint requires a real prisonId to find slots at the
+    // right facility, this meant a booking could only ever surface a slot
+    // by coincidence, not by actually matching the selected prisoner's prison.
+    queryFn: () => (prisonId
+      ? schedulesApi.list({ prisonId, page: 1, limit: 20 })
+      : Promise.resolve({ data: [], pagination: undefined })),
+    enabled: !!selectedPrisonerId && !!prisonId,
   });
 
   if (profileLoading) return <LoadingScreen />;
