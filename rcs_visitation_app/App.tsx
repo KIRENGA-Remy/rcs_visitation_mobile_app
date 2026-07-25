@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
       staleTime:              30_000,
       gcTime:                 5 * 60 * 1000,
       refetchOnWindowFocus:   false,
-      refetchOnReconnect:     true,   
+      refetchOnReconnect:     true,   // refetch when network comes back
     },
     mutations: {
       retry: 0,
@@ -28,15 +28,17 @@ const queryClient = new QueryClient({
   },
 });
 
+// ── Toast config — styled with RCS theme ─────────────────────────────────
 const toastConfig = {
   success: ({ text1, text2 }: any) => null,
   error:   ({ text1, text2 }: any) => null,
   info:    ({ text1, text2 }: any) => null,
 };
 
+// ── Inner component so hooks can run inside providers ─────────────────────
 const AppInner: React.FC = () => {
-  usePushNotifications(); 
-  const { registerActivity } = useAutoLogout();
+  usePushNotifications(); // register channels + listeners
+  const { registerActivity } = useAutoLogout(); // enforce idle-based session timeout
 
   return (
     <View style={{ flex: 1 }} onTouchStart={registerActivity}>

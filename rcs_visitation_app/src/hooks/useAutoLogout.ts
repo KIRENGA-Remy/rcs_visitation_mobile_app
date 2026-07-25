@@ -1,11 +1,23 @@
+/**
+ * useAutoLogout
+ * ─────────────
+ * Enforces a real, visible session timeout on the client, independent of
+ * the JWT's own expiry. Token expiry + silent refresh (see api/client.ts)
+ * keeps the *backend* session alive as long as the refresh token is valid —
+ * but that's an implementation detail the user never sees, so a device
+ * left open on a desk would otherwise stay "logged in" indefinitely.
+ *
+ * Officers and admins get a shorter timeout than visitors, since their
+ * accounts can view national ID numbers and prisoner records.
+ */
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useAuthStore } from '@stores/authStore';
 
 const IDLE_TIMEOUT_MS: Record<string, number> = {
-  VISITOR:        30 * 60 * 1000, 
-  PRISON_OFFICER: 15 * 60 * 1000, 
-  ADMIN:          15 * 60 * 1000, 
+  VISITOR:        30 * 60 * 1000, // 30 minutes
+  PRISON_OFFICER: 15 * 60 * 1000, // 15 minutes
+  ADMIN:          15 * 60 * 1000, // 15 minutes
 };
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -18,7 +30,6 @@ export const useAutoLogout = () => {
   const user         = useAuthStore((s) => s.user);
   const accessToken   = useAuthStore((s) => s.accessToken);
   const clearAuth     = useAuthStore((s) => s.clearAuth);
-  const lastActiveAt  = useAuthStore((s) => s.lastActiveAt);
 
   const appState         = useRef<AppStateStatus>(AppState.currentState);
   const backgroundedAt   = useRef<number | null>(null);
@@ -71,5 +82,5 @@ export const useAutoLogout = () => {
     if (isLoggedIn) useAuthStore.getState().markActive();
   };
 
-  return { registerActivity, lastActiveAt, timeoutMs };
+  return { registerActivity, timeoutMs };
 };
