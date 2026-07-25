@@ -125,6 +125,11 @@ model User {
   lastLoginAt     DateTime?
   emailVerified   Boolean     @default(false)
   phoneVerified   Boolean     @default(false)
+  // Which prison this officer works at — used to scope schedule-change
+  // notifications to the officers actually affected. Null for
+  // ADMIN/VISITOR, and for officers not yet assigned to a specific facility.
+  assignedPrisonId String?
+  assignedPrison    Prison?    @relation("AssignedOfficers", fields: [assignedPrisonId], references: [id])
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -139,6 +144,7 @@ model User {
   @@index([phone])
   @@index([nationalId])
   @@index([role])
+  @@index([assignedPrisonId])
   @@map("users")
 }
 
@@ -242,6 +248,7 @@ model Prison {
   // Relations
   prisoners       Prisoner[]
   schedules       VisitSchedule[]
+  assignedOfficers User[]   @relation("AssignedOfficers")
 
   @@index([code])
   @@index([district])
