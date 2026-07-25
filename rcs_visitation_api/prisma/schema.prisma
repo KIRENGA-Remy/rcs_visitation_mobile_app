@@ -99,7 +99,14 @@ enum NotificationType {
   PRISONER_TRANSFERRED
   SLOT_OPENING        // new slots available
   SCHEDULE_CHANGED    // a visit schedule's time/capacity was edited or cancelled
+  REPORT_REQUESTED    // admin requested a report from an officer (or all officers)
+  REPORT_SUBMITTED    // an officer submitted a report, possibly fulfilling a request
   SYSTEM_ALERT
+}
+
+enum ReportRequestStatus {
+  PENDING     // sent, waiting on the officer(s)
+  FULFILLED   // at least one report submitted against it
 }
 
 // ============================================================
@@ -140,6 +147,9 @@ model User {
   conductedLogs       VisitLog[]            @relation("ConductedBy")    // officer: logs they created
   notifications       Notification[]
   passwordResets      PasswordReset[]
+  authoredReports     OfficerReport[]       @relation("AuthoredReports")
+  requestedReports    ReportRequest[]       @relation("RequestedReports")
+  reportRequestsReceived ReportRequest[]    @relation("ReportRequestsReceived")
 
   @@index([email])
   @@index([phone])
@@ -536,4 +546,70 @@ model PasswordReset {
 
   @@index([token])
   @@map("password_resets")
+}
+
+// ============================================================
+// MODEL — REPORT REQUEST
+// Admin asks one specific officer, or every officer, to submit a report.
+// Distinct from the existing analytics "reports" module (dashboard stats) —
+// this is about actual documents officers write and upload.
+// ============================================================
+
+model ReportRequest {
+  id                String              @id @default(uuid())
+  requestedByUserId String
+  requestedBy       User                @relation("RequestedReports", fields: [requestedByUserId], references: [id])
+
+  // Null targetOfficerId == broadcast to every current officer
+  targetOfficerId   String?
+  targetOfficer     User?               @relation("ReportRequestsReceived", fields: [targetOfficerId], references: [id])
+
+  title             String              // e.g. "Report of visit done on 12/03/2026"
+  message           String?
+  status            ReportRequestStatus @default(PENDING)
+
+  reports           OfficerReport[]
+
+  createdAt         DateTime            @default(now())
+
+  @@index([targetOfficerId])
+  @@index([requestedByUserId])
+  @@index([status])
+  @@map("report_requests")
+}
+
+// ============================================================
+// MODEL — OFFICER REPORT
+// A document an officer writes/uploads — either self-initiated or
+// fulfilling a ReportRequest. File itself lives on local disk (no cloud
+// storage configured in this project); this row stores the metadata and
+// path needed to serve it back through an authenticated download route.
+// ============================================================
+
+model OfficerReport {
+  id              String         @id @default(uuid())
+  officerId       String
+  officer         User           @relation("AuthoredReports", fields: [officerId], references: [id])
+
+  title           String
+  description     String?
+
+  // File metadata — actual bytes live under uploads/officer-reports/ on disk
+  fileName        String
+  filePath        String
+  fileMimeType    String
+  fileSizeBytes   Int
+
+  // Optional links — a report can be about a specific visit, and/or
+  // fulfil a specific admin request
+  visitLogId      String?
+  reportRequestId String?
+  reportRequest   ReportRequest? @relation(fields: [reportRequestId], references: [id])
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([officerId])
+  @@index([reportRequestId])
+  @@map("officer_reports")
 }
