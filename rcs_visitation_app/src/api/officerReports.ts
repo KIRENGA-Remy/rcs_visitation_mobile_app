@@ -6,6 +6,7 @@ export interface OfficerReport {
   title: string;
   description?: string;
   fileName: string;
+  fileUrl: string;
   fileMimeType: string;
   fileSizeBytes: number;
   visitLogId?: string;
@@ -24,19 +25,31 @@ export interface PickedDocument {
 }
 
 export const officerReportsApi = {
-  /** Officer uploads a report — multipart/form-data. */
+  /** Officer uploads a report through the app — multipart/form-data, backend relays it to Cloudinary. */
   create: async (
     meta: { title: string; description?: string; visitLogId?: string; reportRequestId?: string },
     file: PickedDocument
   ): Promise<OfficerReport> => {
     const form = new FormData();
     Object.entries(meta).forEach(([key, value]) => { if (value) form.append(key, value); });
-    // React Native's FormData file shape — not the same as web File objects
     form.append('file', { uri: file.uri, name: file.name, type: file.mimeType } as any);
 
     const res = await client.post<ApiResponse<OfficerReport>>('/officer-reports', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return res.data.data!;
+  },
+
+  /**
+   * Alternative to uploading through the app — the officer already has the
+   * document hosted somewhere (their own Cloudinary account, Google Drive,
+   * etc.) and just pastes the link.
+   */
+  createFromUrl: async (body: {
+    title: string; description?: string; visitLogId?: string; reportRequestId?: string;
+    fileUrl: string; fileName: string;
+  }): Promise<OfficerReport> => {
+    const res = await client.post<ApiResponse<OfficerReport>>('/officer-reports/from-url', body);
     return res.data.data!;
   },
 
@@ -64,12 +77,4 @@ export const officerReportsApi = {
   delete: async (id: string): Promise<void> => {
     await client.delete(`/officer-reports/${id}`);
   },
-
-  /**
-   * Returns the authenticated download URL. Actual downloading + opening in
-   * a native viewer is handled by expo-file-system + expo-sharing on the
-   * screen that calls this, since the endpoint requires the same bearer
-   * token as every other authenticated request.
-   */
-  downloadUrl: (id: string, baseUrl: string): string => `${baseUrl}/officer-reports/${id}/download`,
 };

@@ -10,7 +10,7 @@ import { LoadingScreen } from '@components/common/LoadingScreen';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS } from '@constants';
 import { officerReportsApi } from '@api/officerReports';
-import { downloadAndOpenReport } from '@utils/downloadReport';
+import { openReportFile } from '@utils/downloadReport';
 import { formatDate } from '@utils';
 
 const FILE_ICONS: Record<string, string> = {
@@ -31,10 +31,10 @@ export const SubmittedReportsScreen: React.FC = () => {
     queryFn: () => officerReportsApi.listAll({ limit: 50 }),
   });
 
-  const handleOpen = async (id: string, fileName: string) => {
-    setOpeningId(id);
+  const handleOpen = async (fileUrl: string) => {
+    setOpeningId(fileUrl);
     try {
-      await downloadAndOpenReport(id, fileName);
+      await openReportFile(fileUrl);
     } catch (err: any) {
       Toast.show({ type: 'error', text1: 'Could not open file', text2: err.message });
     } finally {
@@ -76,13 +76,13 @@ export const SubmittedReportsScreen: React.FC = () => {
                 </View>
               </View>
               <TouchableOpacity
-                onPress={() => handleOpen(item.id, item.fileName)}
-                disabled={openingId === item.id}
+                onPress={() => handleOpen(item.fileUrl)}
+                disabled={openingId === item.fileUrl}
                 style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border, flexDirection: 'row', alignItems: 'center', gap: 6 }}
               >
                 <Ionicons name="download-outline" size={16} color={COLORS.primary} />
                 <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '600' }}>
-                  {openingId === item.id ? 'Opening…' : 'Open / Download'}
+                  {openingId === item.fileUrl ? 'Opening…' : 'Open / Download'}
                 </Text>
               </TouchableOpacity>
             </Card>

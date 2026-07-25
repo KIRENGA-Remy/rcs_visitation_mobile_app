@@ -11,7 +11,7 @@ import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS } from '@constants';
 import { officerReportsApi } from '@api/officerReports';
 import { reportRequestsApi } from '@api/reportRequests';
-import { downloadAndOpenReport } from '@utils/downloadReport';
+import { openReportFile } from '@utils/downloadReport';
 import { extractApiError, formatDate } from '@utils';
 
 type Tab = 'reports' | 'requests';
@@ -33,10 +33,10 @@ export const MyReportsScreen: React.FC = () => {
     enabled: tab === 'requests',
   });
 
-  const handleOpen = async (id: string, fileName: string) => {
-    setOpeningId(id);
+  const handleOpen = async (fileUrl: string) => {
+    setOpeningId(fileUrl);
     try {
-      await downloadAndOpenReport(id, fileName);
+      await openReportFile(fileUrl);
     } catch (err: any) {
       Toast.show({ type: 'error', text1: 'Could not open file', text2: err.message });
     } finally {
@@ -105,10 +105,10 @@ export const MyReportsScreen: React.FC = () => {
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 16, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border }}>
-                  <TouchableOpacity onPress={() => handleOpen(item.id, item.fileName)} disabled={openingId === item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <TouchableOpacity onPress={() => handleOpen(item.fileUrl)} disabled={openingId === item.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Ionicons name="open-outline" size={15} color={COLORS.primary} />
                     <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '600' }}>
-                      {openingId === item.id ? 'Opening…' : 'Open'}
+                      {openingId === item.fileUrl ? 'Opening…' : 'Open'}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDelete(item.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
