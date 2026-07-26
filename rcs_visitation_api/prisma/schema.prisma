@@ -148,6 +148,7 @@ model User {
   notifications       Notification[]
   passwordResets      PasswordReset[]
   authoredReports     OfficerReport[]       @relation("AuthoredReports")
+  reportsSentToMe     OfficerReport[]       @relation("ReportsSentToAdmin")
   requestedReports    ReportRequest[]       @relation("RequestedReports")
   reportRequestsReceived ReportRequest[]    @relation("ReportRequestsReceived")
 
@@ -566,6 +567,7 @@ model ReportRequest {
 
   title             String              // e.g. "Report of visit done on 12/03/2026"
   message           String?
+  dueDate           DateTime?           // deadline the officer is expected to submit by
   status            ReportRequestStatus @default(PENDING)
 
   reports           OfficerReport[]
@@ -612,10 +614,19 @@ model OfficerReport {
   reportRequestId String?
   reportRequest   ReportRequest? @relation(fields: [reportRequestId], references: [id])
 
+  // For a SELF-INITIATED report (no reportRequestId) — which admin the
+  // officer explicitly chose to send it to. Null means it was broadcast to
+  // every admin instead of one specific person. Irrelevant when
+  // reportRequestId is set, since then the recipient is already implied by
+  // who made that request.
+  sentToAdminId   String?
+  sentToAdmin     User?          @relation("ReportsSentToAdmin", fields: [sentToAdminId], references: [id])
+
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
   @@index([officerId])
   @@index([reportRequestId])
+  @@index([sentToAdminId])
   @@map("officer_reports")
 }

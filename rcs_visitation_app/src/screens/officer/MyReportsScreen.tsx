@@ -13,7 +13,7 @@ import { COLORS } from '@constants';
 import { officerReportsApi } from '@api/officerReports';
 import { reportRequestsApi } from '@api/reportRequests';
 import { downloadReportFile } from '@utils/downloadReport';
-import { extractApiError, formatDate } from '@utils';
+import { extractApiError, formatDate, formatTime } from '@utils';
 
 type Tab = 'reports' | 'requests';
 
@@ -155,6 +155,15 @@ export const MyReportsScreen: React.FC = () => {
                     <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 6 }}>
                       Requested by {item.requestedBy?.firstName} {item.requestedBy?.lastName} · {formatDate(item.createdAt)}
                     </Text>
+                    {item.dueDate && (
+                      <Text style={{
+                        fontSize: 12, marginTop: 4, fontWeight: '700',
+                        color: new Date(item.dueDate) < new Date() && item.status === 'PENDING' ? COLORS.error : COLORS.warning,
+                      }}>
+                        Due {formatDate(item.dueDate)} at {formatTime(item.dueDate)}
+                        {new Date(item.dueDate) < new Date() && item.status === 'PENDING' ? ' · Overdue' : ''}
+                      </Text>
+                    )}
                   </View>
                   <View style={{
                     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,

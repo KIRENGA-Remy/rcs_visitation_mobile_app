@@ -5,6 +5,7 @@ export interface ReportRequest {
   id: string;
   title: string;
   message?: string;
+  dueDate?: string;
   status: 'PENDING' | 'FULFILLED';
   targetOfficerId?: string;
   createdAt: string;
@@ -15,7 +16,7 @@ export interface ReportRequest {
 
 export const reportRequestsApi = {
   /** Admin: request a report from one specific officer, or every officer (omit targetOfficerId). */
-  create: async (body: { targetOfficerId?: string | null; title: string; message?: string }): Promise<ReportRequest> => {
+  create: async (body: { targetOfficerId?: string | null; title: string; message?: string; dueDate?: string }): Promise<ReportRequest> => {
     const res = await client.post<ApiResponse<ReportRequest>>('/report-requests', body);
     return res.data.data!;
   },
