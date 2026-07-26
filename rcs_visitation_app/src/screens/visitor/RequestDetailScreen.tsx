@@ -81,7 +81,7 @@ export const RequestDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* QR Code for approved requests */}
         {isApproved && request.qrCode && (
           <Card variant="elevated" style={{ marginBottom: 16, alignItems: 'center' }}>
-            <Ionicons name="qr-code" size={80} color={COLORS.primary} />
+            <Ionicons name="qr-code" size={180} color={COLORS.primary} />
             <Text style={{ marginTop: 12, fontWeight: '700', fontSize: 16, color: COLORS.text }}>Your Entry QR Code</Text>
             <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
               Show this at the prison gate. Expires: {request.qrCodeExpiresAt ? formatDateTime(request.qrCodeExpiresAt) : '—'}
@@ -107,9 +107,6 @@ export const RequestDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {request.prisoner.firstName} {request.prisoner.lastName}
                 </Text>
                 <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>#{request.prisoner.prisonerNumber}</Text>
-                {request.prisoner.cellBlock && (
-                  <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>Cell: {request.prisoner.cellBlock}</Text>
-                )}
               </View>
             </View>
           </Card>
