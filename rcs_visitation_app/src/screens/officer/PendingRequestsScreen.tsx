@@ -16,9 +16,9 @@ import type { OfficerStackParamList } from '@navigation/types';
 type StatusTab = 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED';
 
 const STATUS_TABS: { label: string; value: StatusTab }[] = [
+  { label: 'Today',     value: 'CHECKED_IN' },
   { label: 'Pending',   value: 'PENDING' },
   { label: 'Approved',  value: 'APPROVED' },
-  { label: 'Today',     value: 'CHECKED_IN' },
   { label: 'Completed', value: 'COMPLETED' },
 ];
 

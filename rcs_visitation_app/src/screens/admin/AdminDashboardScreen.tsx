@@ -25,7 +25,7 @@ export const AdminDashboardScreen: React.FC = () => {
 
   const { data: stats, isLoading, refetch, isRefetching } = useQuery({
     queryKey: QUERY_KEYS.OVERVIEW,
-    queryFn:  reportsApi.overview,
+    queryFn:  () => reportsApi.overview(),
     staleTime: 60 * 1000,
   });
 

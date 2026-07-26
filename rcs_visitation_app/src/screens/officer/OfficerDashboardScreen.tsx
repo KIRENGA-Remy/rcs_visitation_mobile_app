@@ -41,7 +41,7 @@ export const OfficerDashboardScreen: React.FC = () => {
 
   const { data: overview, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: QUERY_KEYS.OVERVIEW,
-    queryFn:  reportsApi.overview,
+    queryFn:  () => reportsApi.overview(),
     staleTime: 60 * 1000,
   });
 

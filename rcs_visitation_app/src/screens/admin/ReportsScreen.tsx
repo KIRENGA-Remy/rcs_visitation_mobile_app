@@ -18,7 +18,9 @@ export const ReportsScreen: React.FC = () => {
 
   const { data: overview, isLoading: overviewLoading, refetch, isRefetching } = useQuery({
     queryKey: QUERY_KEYS.OVERVIEW,
-    queryFn:  reportsApi.overview,
+    // Same bug/fix as AdminDashboardScreen and OfficerDashboardScreen — see
+    // the comment in AdminDashboardScreen.tsx for the full explanation.
+    queryFn:  () => reportsApi.overview(),
     staleTime: 60 * 1000,
   });
 
