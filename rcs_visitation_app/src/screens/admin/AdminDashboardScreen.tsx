@@ -34,19 +34,13 @@ export const AdminDashboardScreen: React.FC = () => {
     { label: t('active_prisoners'),  value: stats?.prisoners?.active ?? 0,         icon: 'people',           color: COLORS.info     },
     { label: t('total_visitors'),    value: stats?.users?.visitors ?? 0,           icon: 'person-add',       color: COLORS.accent   },
     { label: t('today_checkins'),    value: stats?.todayCheckins ?? 0,             icon: 'enter',            color: COLORS.success  },
-    { label: t('pending_requests'),  value: stats?.visitRequests?.pending ?? 0,    icon: 'time',             color: COLORS.warning  },
-    { label: 'Contact Requests',     value: stats?.pendingContactRequests ?? 0,    icon: 'person-add',       color: COLORS.accent   },
-    { label: t('flagged_incidents'), value: stats?.flaggedIncidents ?? 0,          icon: 'alert-circle',     color: COLORS.error    },
   ], [stats, t]);
 
   const menuItems = useMemo(() => [
     { label: t('manage_users'),     icon: 'people-outline',        screen: 'Users',       color: COLORS.info,    desc: 'View and manage all accounts' },
-    { label: 'Contact Requests',    icon: 'person-add-outline',    screen: 'ContactRequests', color: COLORS.accent, desc: 'Review visitor requests to visit a new prisoner' },
     { label: t('manage_prisoners'), icon: 'person-outline',        screen: 'Prisoners',   color: COLORS.primary, desc: 'Register and transfer prisoners' },
     { label: t('visit_schedules'),  icon: 'calendar-outline',      screen: 'Schedules',   color: COLORS.accent,  desc: 'Manage visiting time slots' },
-    { label: t('reports'),          icon: 'bar-chart-outline',     screen: 'Reports',     color: COLORS.success, desc: 'Analytics and insights' },
     { label: 'Submitted Reports',   icon: 'folder-open-outline',   screen: 'SubmittedReports', color: COLORS.info, desc: 'Documents submitted by officers' },
-    { label: t('visit_logs'),       icon: 'document-text-outline', screen: 'AdminLogs',   color: COLORS.warning, desc: 'Review all visit records' },
     { label: t('notifications'),    icon: 'notifications-outline', screen: 'Notifications', color: COLORS.error, desc: 'Send alerts and broadcasts' },
     { label: t('profile'),          icon: 'person-circle-outline', screen: 'Profile',     color: COLORS.textMuted, desc: 'Your account and settings' },
   ], [t]);
@@ -81,7 +75,7 @@ export const AdminDashboardScreen: React.FC = () => {
             accessibilityRole="button"
             accessibilityLabel={t('profile')}
           >
-            <Avatar firstName={user?.firstName ?? ''} lastName={user?.lastName ?? ''} size={42} />
+            <Avatar firstName={user?.firstName ?? ''} lastName={user?.lastName ?? ''} photoUrl={user?.profilePhoto} size={42} />
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
                 {t('admin_dashboard')}

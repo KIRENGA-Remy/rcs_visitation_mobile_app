@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Avatar } from '@components/common/Avatar';
@@ -58,6 +58,19 @@ export const VisitorHomeScreen: React.FC = () => {
     staleTime: 30 * 1000,
   });
 
+  // React Query only refetches on mount or explicit pull-to-refresh by
+  // default — it has no way to know a request got approved/rejected on the
+  // officer's device while this screen just sat open. Refetching on every
+  // focus (not just first mount) means returning to this tab after
+  // approving/rejecting elsewhere always shows current numbers, not
+  // whatever was cached from before.
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+      refetchStats();
+    }, [refetch, refetchStats])
+  );
+
   // Memoised to avoid recalculating on every render
   const activeRequest = useMemo(
     () => requestsData?.data?.find(r => ['PENDING','APPROVED','CHECKED_IN'].includes(r.status)),
@@ -69,7 +82,6 @@ export const VisitorHomeScreen: React.FC = () => {
     // (requests to be approved to visit someone at all) combined into one
     // "things awaiting review" figure, since both represent the visitor
     // waiting to hear back about something they submitted.
-    { label: t('PENDING'),         value: (stats24?.pending ?? 0) + (stats24?.pendingContactRequests ?? 0), icon: 'time',            color: COLORS.warning },
     { label: t('completed_visits'),value: stats24?.completed ?? 0,  icon: 'checkmark-done',   color: COLORS.success },
     { label: t('APPROVED'),        value: stats24?.approved ?? 0,   icon: 'checkmark-circle', color: COLORS.primary },
     { label: t('rejected'),        value: stats24?.rejected ?? 0,   icon: 'close-circle',     color: COLORS.error   },
@@ -79,7 +91,7 @@ export const VisitorHomeScreen: React.FC = () => {
     { label: t('book_visit'),   icon: 'add-circle',  color: COLORS.primary, screen: 'BookVisit' },
     { label: t('my_requests'),  icon: 'list',         color: COLORS.info,    screen: 'MyRequests' },
     { label: t('my_contacts'),  icon: 'people',        color: COLORS.accent,  screen: 'Contacts' },
-    { label: t('profile'),      icon: 'person',       color: COLORS.accent,  screen: 'Profile' },
+    // { label: t('profile'),      icon: 'person',       color: COLORS.accent,  screen: 'Profile' },
   ], [language]);
 
   const handleNavPress = useCallback((screen: string) => navigation.navigate(screen), [navigation]);
@@ -95,7 +107,7 @@ export const VisitorHomeScreen: React.FC = () => {
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Avatar firstName={user?.firstName ?? ''} lastName={user?.lastName ?? ''} size={44} />
+            <Avatar firstName={user?.firstName ?? ''} lastName={user?.lastName ?? ''} photoUrl={user?.profilePhoto} size={44} />
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>{t('welcome_back')}</Text>
               <Text style={{ color: COLORS.white, fontSize: 18, fontWeight: '700' }}>
@@ -160,7 +172,7 @@ export const VisitorHomeScreen: React.FC = () => {
         {/* Active visit banner */}
         {activeRequest && (
           <TouchableOpacity
-            onPress={() => handleNavPress('RequestDetail')}
+            onPress={() => navigation.navigate('RequestDetail', { id: activeRequest.id })}
             activeOpacity={0.9}
           >
             <LinearGradient
