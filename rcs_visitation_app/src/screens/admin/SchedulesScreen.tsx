@@ -11,12 +11,20 @@ import { LoadingScreen } from '@components/common/LoadingScreen';
 import { EmptyState } from '@components/common/EmptyState';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS, QUERY_KEYS, VISIT_TYPE_LABELS } from '@constants';
+import { useAuthStore } from '@stores/authStore';
 import { schedulesApi } from '@api/schedules';
 import { formatDate, formatTime, extractApiError } from '@utils';
 
 export const SchedulesScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  // Officers get read-only access; among admins, only the schedule's own
+  // creator may edit/cancel/reopen it — matching the backend's enforcement
+  // (a schedule with no recorded creator, e.g. legacy data, is treated as
+  // unclaimed and editable by any admin, same leniency as the backend).
+  const canManage = (schedule: { createdByUserId?: string | null }) =>
+    user?.role === 'ADMIN' && (!schedule.createdByUserId || schedule.createdByUserId === user.id);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: QUERY_KEYS.SCHEDULES,
@@ -81,10 +89,12 @@ export const SchedulesScreen: React.FC = () => {
             const capacityRatio = item.maxCapacity > 0 ? item.currentBookings / item.maxCapacity : 0;
             const capacityColor = capacityRatio >= 1 ? COLORS.error : capacityRatio >= 0.7 ? COLORS.warning : COLORS.success;
 
+            const manageable = canManage(item);
+
             return (
               <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('ScheduleForm', { id: item.id })}
+                activeOpacity={manageable ? 0.85 : 1}
+                onPress={manageable ? () => navigation.navigate('ScheduleForm', { id: item.id }) : undefined}
                 style={{
                   backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
                   marginBottom: 10, flexDirection: 'row', gap: 12,
@@ -133,7 +143,10 @@ export const SchedulesScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  {item.status === 'OPEN' && (
+                  {/* Cancel/reopen only ever shown to the admin who created
+                      this schedule — an officer or another admin only gets
+                      the read-only view above. */}
+                  {manageable && item.status === 'OPEN' && (
                     <TouchableOpacity
                       onPress={() => handleCancel(item.id)}
                       style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5 }}
@@ -142,7 +155,7 @@ export const SchedulesScreen: React.FC = () => {
                       <Text style={{ color: COLORS.error, fontSize: 12, fontWeight: '600' }}>Cancel slot</Text>
                     </TouchableOpacity>
                   )}
-                  {item.status === 'CANCELLED' && (
+                  {manageable && item.status === 'CANCELLED' && (
                     <TouchableOpacity
                       onPress={() => handleReopen(item.id)}
                       style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5 }}
@@ -158,21 +171,23 @@ export const SchedulesScreen: React.FC = () => {
         />
       )}
 
-      {/* FAB — create a new schedule */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate('ScheduleForm', {})}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel="Create new schedule"
-        style={{
-          position: 'absolute', bottom: 24, right: 20,
-          width: 56, height: 56, borderRadius: 28,
-          backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
-          shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
-        }}
-      >
-        <Ionicons name="add" size={28} color={COLORS.white} />
-      </TouchableOpacity>
+      {/* FAB — create a new schedule (admin only) */}
+      {user?.role === 'ADMIN' && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ScheduleForm', {})}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Create new schedule"
+          style={{
+            position: 'absolute', bottom: 24, right: 20,
+            width: 56, height: 56, borderRadius: 28,
+            backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+            shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
+          }}
+        >
+          <Ionicons name="add" size={28} color={COLORS.white} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

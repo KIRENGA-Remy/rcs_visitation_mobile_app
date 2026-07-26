@@ -5,6 +5,19 @@ import { buildPagination } from '../../shared/utils/apiResponse';
 import { notificationService } from '../notifications/notification.service';
 
 export class ScheduleService {
+  /**
+   * Only the specific admin who created a schedule may edit, cancel, or
+   * reopen it — not just "any admin". Without this, one admin could
+   * silently modify another admin's schedule, which is exactly the
+   * ownership guarantee that was missing (role-based authorize() alone
+   * only checked "is this an admin", not "is this the right admin").
+   */
+  private assertOwner(schedule: { createdByUserId: string | null }, requestorId: string) {
+    if (schedule.createdByUserId && schedule.createdByUserId !== requestorId) {
+      throw new Error('Only the admin who created this schedule can modify it');
+    }
+  }
+
   async create(dto: CreateScheduleDto, createdByUserId: string) {
     const schedule = await prisma.visitSchedule.create({
       data: {
@@ -58,8 +71,9 @@ export class ScheduleService {
     return { schedules: enriched, pagination: buildPagination(page, limit, total) };
   }
 
-  async update(id: string, dto: UpdateScheduleDto) {
+  async update(id: string, dto: UpdateScheduleDto, requestorId: string) {
     const schedule = await prisma.visitSchedule.findUniqueOrThrow({ where: { id } });
+    this.assertOwner(schedule, requestorId);
 
     if (dto.maxCapacity !== undefined && dto.maxCapacity < schedule.currentBookings) {
       throw new Error(`Cannot reduce capacity below ${schedule.currentBookings} existing bookings`);
@@ -98,8 +112,9 @@ export class ScheduleService {
    * its time/capacity afterward, left `status` permanently stuck, since
    * `update()` never touches status and there was no dedicated undo action.
    */
-  async reopen(id: string) {
+  async reopen(id: string, requestorId: string) {
     const schedule = await prisma.visitSchedule.findUniqueOrThrow({ where: { id } });
+    this.assertOwner(schedule, requestorId);
     if (schedule.status === 'OPEN') {
       throw new Error('This schedule is already open');
     }
@@ -118,7 +133,10 @@ export class ScheduleService {
     return updated;
   }
 
-  async cancel(id: string) {
+  async cancel(id: string, requestorId: string) {
+    const existing = await prisma.visitSchedule.findUniqueOrThrow({ where: { id } });
+    this.assertOwner(existing, requestorId);
+
     return prisma.$transaction(async (tx) => {
       // Cancel the schedule
       const schedule = await tx.visitSchedule.update({

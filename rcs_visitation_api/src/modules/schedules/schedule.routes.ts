@@ -14,10 +14,13 @@ router.get('/',      authenticate, scheduleController.findAvailable.bind(schedul
 router.get('/admin', authenticate, authorize('ADMIN', 'PRISON_OFFICER'), scheduleController.findAllForAdmin.bind(scheduleController));
 router.get('/:id',   authenticate, scheduleController.findById.bind(scheduleController));
 
-// Only admin/officer manage schedules
-router.post('/',          authenticate, authorize('ADMIN', 'PRISON_OFFICER'), validate(createScheduleSchema), scheduleController.create.bind(scheduleController));
-router.put('/:id',         authenticate, authorize('ADMIN', 'PRISON_OFFICER'), validate(updateScheduleSchema), scheduleController.update.bind(scheduleController));
-router.patch('/:id/cancel', authenticate, authorize('ADMIN', 'PRISON_OFFICER'), scheduleController.cancel.bind(scheduleController));
-router.patch('/:id/reopen', authenticate, authorize('ADMIN', 'PRISON_OFFICER'), scheduleController.reopen.bind(scheduleController));
+// Only admin creates/manages schedules — officers can view them (GET /admin
+// above) but must not be able to create, edit, cancel, or reopen one; and
+// even among admins, only the admin who originally created a schedule may
+// modify it (enforced in the service layer, not just this role check).
+router.post('/',          authenticate, authorize('ADMIN'), validate(createScheduleSchema), scheduleController.create.bind(scheduleController));
+router.put('/:id',         authenticate, authorize('ADMIN'), validate(updateScheduleSchema), scheduleController.update.bind(scheduleController));
+router.patch('/:id/cancel', authenticate, authorize('ADMIN'), scheduleController.cancel.bind(scheduleController));
+router.patch('/:id/reopen', authenticate, authorize('ADMIN'), scheduleController.reopen.bind(scheduleController));
 
 export default router;

@@ -173,6 +173,7 @@ export interface VisitSchedule {
   status: ScheduleStatus;
   visitType: VisitType;
   notes?: string;
+  createdByUserId?: string | null;
   prison: { name: string; code: string };
 }
 

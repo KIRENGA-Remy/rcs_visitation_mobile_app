@@ -9,8 +9,9 @@ export class ScheduleController {
     catch (err) { next(err); }
   }
   async update(req: AuthRequest, res: Response, next: NextFunction) {
-    try { sendSuccess(res, await scheduleService.update(req.params.id, req.body), 'Schedule updated'); }
+    try { sendSuccess(res, await scheduleService.update(req.params.id, req.body, req.user!.id), 'Schedule updated'); }
     catch (err: any) {
+      if (err.message?.includes('Only the admin who created')) { sendError(res, err.message, 403); return; }
       if (err.message?.includes('Cannot reduce capacity') || err.message?.includes('End time must be after')) {
         sendError(res, err.message, 400); return;
       }
@@ -34,12 +35,16 @@ export class ScheduleController {
     catch (err) { next(err); }
   }
   async cancel(req: AuthRequest, res: Response, next: NextFunction) {
-    try { sendSuccess(res, await scheduleService.cancel(req.params.id), 'Schedule cancelled'); }
-    catch (err) { next(err); }
+    try { sendSuccess(res, await scheduleService.cancel(req.params.id, req.user!.id), 'Schedule cancelled'); }
+    catch (err: any) {
+      if (err.message?.includes('Only the admin who created')) { sendError(res, err.message, 403); return; }
+      next(err);
+    }
   }
   async reopen(req: AuthRequest, res: Response, next: NextFunction) {
-    try { sendSuccess(res, await scheduleService.reopen(req.params.id), 'Schedule reopened'); }
+    try { sendSuccess(res, await scheduleService.reopen(req.params.id, req.user!.id), 'Schedule reopened'); }
     catch (err: any) {
+      if (err.message?.includes('Only the admin who created')) { sendError(res, err.message, 403); return; }
       if (err.message?.includes('already open') || err.message?.includes('already passed')) {
         sendError(res, err.message, 400); return;
       }
