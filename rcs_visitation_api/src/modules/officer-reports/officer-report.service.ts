@@ -36,6 +36,7 @@ class OfficerReportService {
         targetOfficerId: dto.targetOfficerId ?? null,
         title: dto.title,
         message: dto.message,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
     });
 
@@ -43,13 +44,19 @@ class OfficerReportService {
       ? [dto.targetOfficerId]
       : (await prisma.user.findMany({ where: { role: 'PRISON_OFFICER' }, select: { id: true } })).map(o => o.id);
 
+    const deadlineText = dto.dueDate
+      ? ` Due by ${new Date(dto.dueDate).toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+        })}.`
+      : '';
+
     await Promise.allSettled(
       targets.map((officerId) =>
         notificationService.send({
           userId: officerId,
           type: 'REPORT_REQUESTED',
           title: 'Report Requested',
-          body: dto.message ? `"${dto.title}" — ${dto.message}` : `"${dto.title}" has been requested from you.`,
+          body: (dto.message ? `"${dto.title}" — ${dto.message}` : `"${dto.title}" has been requested from you.`) + deadlineText,
         })
       )
     );
@@ -205,7 +212,7 @@ class OfficerReportService {
       where: { id },
       include: {
         officer: { select: { firstName: true, lastName: true, email: true } },
-        reportRequest: { select: { title: true } },
+        reportRequest: { select: { title: true, requestedByUserId: true } },
         sentToAdmin: { select: { firstName: true, lastName: true } },
       },
     });
@@ -229,10 +236,29 @@ class OfficerReportService {
   }
 
   /** Admin: every submitted report, optionally filtered to one officer. */
-  async getAllReports(query: { officerId?: string; page?: unknown; limit?: unknown }) {
+  /**
+   * Admin: every report actually visible to THEM — not a blanket "every
+   * report ever submitted". Previously this had no scoping at all, meaning
+   * any admin could see a report an officer had deliberately sent to a
+   * different, specific admin. Visibility rules:
+   *   - Broadcast (no specific request, sentToAdminId null) — everyone sees it.
+   *   - Sent to a specific admin (sentToAdminId set) — only that admin sees it.
+   *   - Fulfilling a specific ReportRequest — only the admin who made that
+   *     request sees it (sentToAdminId is always null in this case; the
+   *     "who it's for" comes from the request itself).
+   */
+  async getAllReports(query: { officerId?: string; page?: unknown; limit?: unknown }, requestingAdminId: string) {
     const { page, limit, skip } = parsePagination(query);
-    const where: any = {};
-    if (query.officerId) where.officerId = query.officerId;
+    const visibilityFilter = {
+      OR: [
+        { reportRequestId: null, sentToAdminId: null },
+        { reportRequestId: null, sentToAdminId: requestingAdminId },
+        { reportRequestId: { not: null }, reportRequest: { requestedByUserId: requestingAdminId } },
+      ],
+    };
+    const where: any = query.officerId
+      ? { AND: [{ officerId: query.officerId }, visibilityFilter] }
+      : visibilityFilter;
 
     const [reports, total] = await Promise.all([
       prisma.officerReport.findMany({

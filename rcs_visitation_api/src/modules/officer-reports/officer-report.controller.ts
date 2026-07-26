@@ -3,6 +3,12 @@ import { officerReportService } from './officer-report.service';
 import { sendSuccess, sendError } from '../../shared/utils/apiResponse';
 import { AuthRequest } from '../../shared/types';
 
+/** Mirrors the visibility rule enforced in officerReportService.getAllReports. */
+const isVisibleToAdmin = (report: any, adminId: string): boolean => {
+  if (report.reportRequestId) return report.reportRequest?.requestedByUserId === adminId;
+  return report.sentToAdminId === null || report.sentToAdminId === adminId;
+};
+
 class OfficerReportController {
   // ── Admin: report requests ────────────────────────────────────────────
   async createRequest(req: AuthRequest, res: Response, next: NextFunction) {
@@ -72,7 +78,7 @@ class OfficerReportController {
   // ── Admin: view/download all reports ──────────────────────────────────
   async getAllReports(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { reports, pagination } = await officerReportService.getAllReports(req.query as any);
+      const { reports, pagination } = await officerReportService.getAllReports(req.query as any, req.user!.id);
       sendSuccess(res, reports, 'Reports retrieved', 200, pagination);
     } catch (err) { next(err); }
   }
@@ -80,10 +86,10 @@ class OfficerReportController {
   async getById(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const report = await officerReportService.getById(req.params.id);
-      // An officer may only view their own report's metadata; an admin can view any.
-      if (req.user!.role !== 'ADMIN' && report.officerId !== req.user!.id) {
-        sendError(res, 'You do not have access to this report', 403); return;
-      }
+      const allowed = req.user!.role === 'ADMIN'
+        ? isVisibleToAdmin(report, req.user!.id)
+        : report.officerId === req.user!.id;
+      if (!allowed) { sendError(res, 'You do not have access to this report', 403); return; }
       sendSuccess(res, report);
     } catch (err) { next(err); }
   }
@@ -105,9 +111,10 @@ class OfficerReportController {
   async download(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const report = await officerReportService.getById(req.params.id);
-      if (req.user!.role !== 'ADMIN' && report.officerId !== req.user!.id) {
-        sendError(res, 'You do not have access to this report', 403); return;
-      }
+      const allowed = req.user!.role === 'ADMIN'
+        ? isVisibleToAdmin(report, req.user!.id)
+        : report.officerId === req.user!.id;
+      if (!allowed) { sendError(res, 'You do not have access to this report', 403); return; }
       res.redirect(report.fileUrl);
     } catch (err) { next(err); }
   }
