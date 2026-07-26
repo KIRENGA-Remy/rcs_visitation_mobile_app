@@ -83,8 +83,7 @@ export const VisitLogsScreen: React.FC = () => {
                 shadowOpacity: 0.07,
                 shadowRadius: 6,
                 elevation: 2,
-                borderLeftWidth: 4,
-                borderLeftColor: item.incidentFlagged ? COLORS.error : COLORS.success,
+                borderLeftWidth: 0
               }}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>

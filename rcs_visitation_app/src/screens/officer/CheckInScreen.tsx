@@ -96,7 +96,7 @@ export const CheckInScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Visitor identity card */}
         {v && (
-          <Card variant="elevated" style={{ marginBottom: 16, borderLeftWidth: 4, borderLeftColor: COLORS.success }}>
+          <Card variant="elevated" style={{ marginBottom: 16, borderLeftWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <Avatar firstName={v.firstName} lastName={v.lastName} size={52} />
               <View style={{ flex: 1 }}>
