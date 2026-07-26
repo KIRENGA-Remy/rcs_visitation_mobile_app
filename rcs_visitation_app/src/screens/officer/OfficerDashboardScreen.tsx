@@ -54,16 +54,26 @@ export const OfficerDashboardScreen: React.FC = () => {
   const refresh = useCallback(() => { refetchStats(); refetchReqs(); }, []);
 
   const statCards = useMemo(() => [
-    { label: 'Contact Requests',     value: overview?.pendingContactRequests ?? 0,    icon: 'person-add',   color: COLORS.accent  },
-    { label: t('pending_requests'),  value: overview?.visitRequests?.pending ?? 0,    icon: 'time',          color: COLORS.warning },
-    { label: t('APPROVED'),          value: overview?.visitRequests?.approvedToday ?? 0, icon: 'checkmark-circle', color: COLORS.success },
     { label: t('today_checkins'),    value: overview?.todayCheckins ?? 0,             icon: 'enter',         color: COLORS.primary },
+    { label: t('pending_requests'),  value: overview?.visitRequests?.pending ?? 0,    icon: 'time',          color: COLORS.warning },
+    { label: 'Contact Requests',     value: overview?.pendingContactRequests ?? 0,    icon: 'person-add',   color: COLORS.accent  },
+    { label: t('flagged_incidents'), value: overview?.flaggedIncidents ?? 0,          icon: 'alert-circle',  color: COLORS.error   },
+    { label: t('APPROVED'),          value: overview?.visitRequests?.approvedToday ?? 0, icon: 'checkmark-circle', color: COLORS.success },
   ], [overview, t]);
 
   const quickActions = useMemo(() => [
     { label: t('scan_qr'),     icon: 'qr-code',       screen: 'ScanQR',          color: COLORS.primary },
-    { label: 'Contact Requests', icon: 'person-add',  screen: 'ContactRequests', color: COLORS.accent },
+    // "Pending" tile removed — the Pending Requests section further down
+    // this same screen already links to the exact same PendingRequests
+    // screen via its "See All" button, making the tile a pure duplicate.
+    // IMPORTANT: this cannot navigate straight to 'CheckOut' — that screen
+    // requires a specific visitRequestId (route.params.visitRequestId) to
+    // know WHICH visit to end, which we don't have yet at this point. Doing
+    // so crashed with "Cannot read property 'visitRequestId' of undefined".
+    // Routing to PendingRequests' CHECKED_IN tab lets the officer pick who
+    // to check out first, same as tapping a checked-in card there directly.
     { label: t('check_out'),   icon: 'exit',           screen: 'PendingRequests', params: { initialTab: 'CHECKED_IN' }, color: COLORS.info },
+    { label: 'Contact Requests', icon: 'person-add',  screen: 'ContactRequests', color: COLORS.accent },
     { label: t('visit_logs'), icon: 'document-text',  screen: 'VisitLogs',       color: COLORS.success },
     { label: 'My Reports',    icon: 'folder-open',     screen: 'MyReports',       color: COLORS.info },
     { label: 'Visit Schedules', icon: 'calendar',      screen: 'Schedules',       color: COLORS.warning },
@@ -130,7 +140,7 @@ export const OfficerDashboardScreen: React.FC = () => {
         {/* Stats grid */}
         {statsLoading
           ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {[1,2,3,4,5].map(i => (
+              {[1,2,3,4].map(i => (
                 <View key={i} style={{ width: '47%', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 14, height: 88 }} />
               ))}
             </View>
