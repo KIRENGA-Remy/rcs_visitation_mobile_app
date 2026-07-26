@@ -82,6 +82,7 @@ export const VisitorHomeScreen: React.FC = () => {
     // (requests to be approved to visit someone at all) combined into one
     // "things awaiting review" figure, since both represent the visitor
     // waiting to hear back about something they submitted.
+    { label: t('PENDING'),         value: (stats24?.pending ?? 0) + (stats24?.pendingContactRequests ?? 0), icon: 'time',            color: COLORS.warning },
     { label: t('completed_visits'),value: stats24?.completed ?? 0,  icon: 'checkmark-done',   color: COLORS.success },
     { label: t('APPROVED'),        value: stats24?.approved ?? 0,   icon: 'checkmark-circle', color: COLORS.primary },
     { label: t('rejected'),        value: stats24?.rejected ?? 0,   icon: 'close-circle',     color: COLORS.error   },
@@ -91,7 +92,7 @@ export const VisitorHomeScreen: React.FC = () => {
     { label: t('book_visit'),   icon: 'add-circle',  color: COLORS.primary, screen: 'BookVisit' },
     { label: t('my_requests'),  icon: 'list',         color: COLORS.info,    screen: 'MyRequests' },
     { label: t('my_contacts'),  icon: 'people',        color: COLORS.accent,  screen: 'Contacts' },
-    // { label: t('profile'),      icon: 'person',       color: COLORS.accent,  screen: 'Profile' },
+    { label: t('profile'),      icon: 'person',       color: COLORS.accent,  screen: 'Profile' },
   ], [language]);
 
   const handleNavPress = useCallback((screen: string) => navigation.navigate(screen), [navigation]);
@@ -169,42 +170,60 @@ export const VisitorHomeScreen: React.FC = () => {
         contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); refetchStats(); }} tintColor={COLORS.primary} />}
       >
-        {/* Active visit banner */}
-        {activeRequest && (
-          <TouchableOpacity
-            onPress={() => navigation.navigate('RequestDetail', { id: activeRequest.id })}
-            activeOpacity={0.9}
-          >
-            <LinearGradient
-              colors={activeRequest.status === 'APPROVED' ? [COLORS.primary, COLORS.primaryLight] : ['#F59E0B','#D97706']}
+        {/* Upcoming visit — styled like a ticket stub (the actual real-world
+            object this represents: an admission ticket to a scheduled
+            visit) rather than a generic gradient banner with an icon pill. */}
+        {activeRequest && (() => {
+          const isApproved = activeRequest.status === 'APPROVED';
+          const accent = isApproved ? COLORS.primary : '#D97706';
+          const scheduleDate = activeRequest.schedule?.startTime ? new Date(activeRequest.schedule.startTime) : null;
+          const prisonerName = activeRequest.prisoner
+            ? `${activeRequest.prisoner.firstName} ${activeRequest.prisoner.lastName}` : '—';
+
+          return (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('RequestDetail', { id: activeRequest.id })}
+              activeOpacity={0.9}
               style={{
-                borderRadius: 16, padding: 16, marginBottom: 20,
-                flexDirection: 'row', alignItems: 'center', gap: 12,
+                flexDirection: 'row', backgroundColor: COLORS.white, borderRadius: 16,
+                marginBottom: 20, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
               }}
             >
-              <View style={{
-                width: 44, height: 44, borderRadius: 22,
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Ionicons
-                  name={activeRequest.status === 'APPROVED' ? 'qr-code' : 'time'}
-                  size={22}
-                  color={COLORS.white}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 15 }}>
-                  {activeRequest.status === 'APPROVED' ? t('active_visit') : t('pending_visit')}
+              {/* Ticket stub */}
+              <View style={{ width: 68, backgroundColor: accent, alignItems: 'center', justifyContent: 'center', paddingVertical: 14 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>
+                  {scheduleDate?.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() ?? '—'}
                 </Text>
-                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 }}>
-                  {activeRequest.schedule?.startTime ? formatDate(activeRequest.schedule.startTime) : ''}
+                <Text style={{ color: COLORS.white, fontSize: 24, fontWeight: '800', marginTop: 1 }}>
+                  {scheduleDate?.getDate() ?? '—'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+
+              {/* Perforated divider — real dashed border, evokes a tear-off ticket edge */}
+              <View style={{ borderLeftWidth: 1.5, borderStyle: 'dashed', borderColor: `${accent}55` }} />
+
+              <View style={{ flex: 1, padding: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Ionicons name={isApproved ? 'checkmark-circle' : 'time'} size={13} color={accent} />
+                  <Text style={{ color: accent, fontSize: 11, fontWeight: '700', letterSpacing: 0.3 }}>
+                    {isApproved ? 'APPROVED — READY TO VISIT' : 'AWAITING APPROVAL'}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }} numberOfLines={1}>
+                  Visiting {prisonerName}
+                </Text>
+                <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }} numberOfLines={1}>
+                  {activeRequest.schedule?.prison?.name ?? '—'}
+                  {scheduleDate ? ` · ${scheduleDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}
+                </Text>
+              </View>
+
+              <View style={{ justifyContent: 'center', paddingRight: 14 }}>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+              </View>
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* Quick actions */}
         <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 14 }}>
