@@ -1,5 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { OfficerDashboardScreen } from '@screens/officer/OfficerDashboardScreen';
 import { PendingRequestsScreen }  from '@screens/officer/PendingRequestsScreen';
 import { ContactRequestsScreen }  from '@screens/officer/ContactRequestsScreen';
@@ -22,14 +24,57 @@ import { EditProfileScreen }         from '@screens/shared/EditProfileScreen';
 import { ChangePasswordScreen }      from '@screens/shared/ChangePasswordScreen';
 import { NotificationSettingsScreen } from '@screens/shared/NotificationSettingsScreen';
 import { PrivacySecurityScreen }     from '@screens/shared/PrivacySecurityScreen';
-import type { OfficerStackParamList } from './types';
+import { COLORS } from '@constants';
+import { useNotificationStore } from '@stores/notificationStore';
+import type { OfficerTabParamList, OfficerStackParamList } from './types';
 
+const Tab   = createBottomTabNavigator<OfficerTabParamList>();
 const Stack = createNativeStackNavigator<OfficerStackParamList>();
+
+const OfficerTabs: React.FC = () => {
+  const { unreadCount } = useNotificationStore();
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor:   COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarStyle: {
+          backgroundColor: COLORS.white,
+          borderTopColor: COLORS.border,
+          borderTopWidth: 1,
+          height: 62,
+          paddingBottom: 8,
+          paddingTop: 6,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarIcon: ({ color, size, focused }) => {
+          const icons: Record<string, [string, string]> = {
+            Dashboard:       ['home', 'home-outline'],
+            PendingRequests: ['list', 'list-outline'],
+            Notifications:   ['notifications', 'notifications-outline'],
+            Profile:         ['person', 'person-outline'],
+          };
+          const [active, inactive] = icons[route.name] ?? ['ellipsis-horizontal', 'ellipsis-horizontal-outline'];
+          return <Ionicons name={(focused ? active : inactive) as any} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Dashboard"       component={OfficerDashboardScreen} options={{ title: 'Dashboard' }} />
+      <Tab.Screen name="PendingRequests" component={PendingRequestsScreen}  options={{ title: 'Requests' }} />
+      <Tab.Screen name="Notifications"   component={NotificationsScreen}    options={{
+        title: 'Alerts',
+        tabBarBadge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : undefined,
+        tabBarBadgeStyle: { backgroundColor: COLORS.accent, color: COLORS.black, fontSize: 10, fontWeight: '800' },
+      }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
+    </Tab.Navigator>
+  );
+};
 
 export const OfficerNavigator: React.FC = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="OfficerDashboard" component={OfficerDashboardScreen} />
-    <Stack.Screen name="PendingRequests"  component={PendingRequestsScreen} />
+    <Stack.Screen name="OfficerTabs"      component={OfficerTabs} />
     <Stack.Screen name="ContactRequests"  component={ContactRequestsScreen} />
     <Stack.Screen name="MyReports"        component={MyReportsScreen} />
     <Stack.Screen name="ReportUpload"     component={ReportUploadScreen} />
