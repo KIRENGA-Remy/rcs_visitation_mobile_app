@@ -14,6 +14,7 @@ import { SubmittedReportsScreen } from '@screens/admin/SubmittedReportsScreen';
 import { RequestReportScreen }    from '@screens/admin/RequestReportScreen';
 import { ReportViewerScreen }     from '@screens/shared/ReportViewerScreen';
 import { NotificationsScreen }  from '@screens/shared/NotificationsScreen';
+import { NotificationDetailScreen } from '@screens/shared/NotificationDetailScreen';
 import { ProfileScreen }        from '@screens/shared/ProfileScreen';
 import { HelpSupportScreen }    from '@screens/shared/HelpSupportScreen';
 import { AboutScreen }          from '@screens/shared/AboutScreen';
@@ -41,6 +42,7 @@ export const AdminNavigator: React.FC = () => (
     <Stack.Screen name="RequestReport"    component={RequestReportScreen} />
     <Stack.Screen name="ReportViewer"     component={ReportViewerScreen} />
     <Stack.Screen name="Notifications"  component={NotificationsScreen} />
+    <Stack.Screen name="NotificationDetail" component={NotificationDetailScreen} />
     <Stack.Screen name="Profile"        component={ProfileScreen} />
     <Stack.Screen name="Help"           component={HelpSupportScreen} />
     <Stack.Screen name="About"          component={AboutScreen} />

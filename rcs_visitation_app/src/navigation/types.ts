@@ -18,6 +18,7 @@ export type VisitorStackParamList = {
   BookVisit:      undefined;
   RequestDetail:  { id: string };
   Notifications:  undefined;
+  NotificationDetail: { notification: any };
   Profile:        undefined;
   Contacts:       undefined;
   Help:           undefined;
@@ -37,12 +38,14 @@ export type OfficerStackParamList = {
   ReportUpload:       { reportRequestId?: string; presetTitle?: string } | undefined;
   Schedules:          undefined;
   ScheduleForm:       { id?: string } | undefined;
+  ReportViewer:       { fileUrl: string; fileName: string; fileMimeType?: string };
   ReviewRequest:      { id: string };
   ScanQR:             undefined;
   CheckIn:            { visitRequestId: string };
   CheckOut:           { visitRequestId: string };
   VisitLogs:          undefined;
   Notifications:      undefined;
+  NotificationDetail: { notification: any };
   Profile:            undefined;
   Help:               undefined;
   About:              undefined;
@@ -66,8 +69,10 @@ export type AdminStackParamList = {
   AdminLogs:      undefined;
   ContactRequests:undefined;
   SubmittedReports: undefined;
+  ReportViewer:     { fileUrl: string; fileName: string; fileMimeType?: string };
   RequestReport:    undefined;
   Notifications:  undefined;
+  NotificationDetail: { notification: any };
   Profile:        undefined;
   Help:           undefined;
   About:          undefined;

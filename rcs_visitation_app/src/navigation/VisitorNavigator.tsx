@@ -10,6 +10,7 @@ import { BookVisitScreen }       from '@screens/visitor/BookVisitScreen';
 import { ContactsScreen }        from '@screens/visitor/ContactsScreen';
 import { RequestVisitScreen }    from '@screens/visitor/RequestVisitScreen';
 import { NotificationsScreen }   from '@screens/shared/NotificationsScreen';
+import { NotificationDetailScreen } from '@screens/shared/NotificationDetailScreen';
 import { ProfileScreen }         from '@screens/shared/ProfileScreen';
 import { HelpSupportScreen }     from '@screens/shared/HelpSupportScreen';
 import { AboutScreen }           from '@screens/shared/AboutScreen';
@@ -73,6 +74,7 @@ export const VisitorNavigator: React.FC = () => (
     <Stack.Screen name="RequestVisit"   component={RequestVisitScreen} />
     <Stack.Screen name="RequestDetail"  component={RequestDetailScreen} />
     <Stack.Screen name="Notifications"  component={NotificationsScreen} />
+    <Stack.Screen name="NotificationDetail" component={NotificationDetailScreen} />
     <Stack.Screen name="Profile"        component={ProfileScreen} />
     <Stack.Screen name="Help"           component={HelpSupportScreen} />
     <Stack.Screen name="About"          component={AboutScreen} />

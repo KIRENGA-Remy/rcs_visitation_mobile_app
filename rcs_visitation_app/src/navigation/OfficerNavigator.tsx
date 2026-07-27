@@ -5,15 +5,16 @@ import { PendingRequestsScreen }  from '@screens/officer/PendingRequestsScreen';
 import { ContactRequestsScreen }  from '@screens/officer/ContactRequestsScreen';
 import { MyReportsScreen }        from '@screens/officer/MyReportsScreen';
 import { ReportUploadScreen }     from '@screens/officer/ReportUploadScreen';
-import { ReportViewerScreen } from '@screens/shared/ReportViewerScreen';
 import { SchedulesScreen }        from '@screens/admin/SchedulesScreen';
 import { ScheduleFormScreen }     from '@screens/admin/ScheduleFormScreen';
+import { ReportViewerScreen }     from '@screens/shared/ReportViewerScreen';
 import { ReviewRequestScreen }    from '@screens/officer/ReviewRequestScreen';
 import { ScanQRScreen }           from '@screens/officer/ScanQRScreen';
 import { CheckInScreen }          from '@screens/officer/CheckInScreen';
 import { CheckOutScreen }         from '@screens/officer/CheckOutScreen';
 import { VisitLogsScreen }        from '@screens/officer/VisitLogsScreen';
 import { NotificationsScreen }    from '@screens/shared/NotificationsScreen';
+import { NotificationDetailScreen } from '@screens/shared/NotificationDetailScreen';
 import { ProfileScreen }          from '@screens/shared/ProfileScreen';
 import { HelpSupportScreen }      from '@screens/shared/HelpSupportScreen';
 import { AboutScreen }            from '@screens/shared/AboutScreen';
@@ -34,13 +35,14 @@ export const OfficerNavigator: React.FC = () => (
     <Stack.Screen name="ReportUpload"     component={ReportUploadScreen} />
     <Stack.Screen name="Schedules"        component={SchedulesScreen} />
     <Stack.Screen name="ScheduleForm"     component={ScheduleFormScreen} />
-    <Stack.Screen name="ReportViewer" component={ReportViewerScreen} />
+    <Stack.Screen name="ReportViewer"     component={ReportViewerScreen} />
     <Stack.Screen name="ReviewRequest"    component={ReviewRequestScreen} />
     <Stack.Screen name="ScanQR"           component={ScanQRScreen} />
     <Stack.Screen name="CheckIn"          component={CheckInScreen} />
     <Stack.Screen name="CheckOut"         component={CheckOutScreen} />
     <Stack.Screen name="VisitLogs"        component={VisitLogsScreen} />
     <Stack.Screen name="Notifications"    component={NotificationsScreen} />
+    <Stack.Screen name="NotificationDetail" component={NotificationDetailScreen} />
     <Stack.Screen name="Profile"          component={ProfileScreen} />
     <Stack.Screen name="Help"             component={HelpSupportScreen} />
     <Stack.Screen name="About"            component={AboutScreen} />
