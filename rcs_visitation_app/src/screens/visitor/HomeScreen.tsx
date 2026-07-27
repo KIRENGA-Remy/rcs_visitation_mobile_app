@@ -174,8 +174,17 @@ export const VisitorHomeScreen: React.FC = () => {
             object this represents: an admission ticket to a scheduled
             visit) rather than a generic gradient banner with an icon pill. */}
         {activeRequest && (() => {
-          const isApproved = activeRequest.status === 'APPROVED';
-          const accent = isApproved ? COLORS.primary : '#D97706';
+          // BUG FIX: this used to only ever distinguish APPROVED from
+          // "everything else", so a request that had actually progressed
+          // to CHECKED_IN still displayed as "AWAITING APPROVAL" — showing
+          // stale/wrong status for a visit that was already underway.
+          const statusMeta = {
+            PENDING:    { accent: '#D97706',        icon: 'time',            label: 'AWAITING APPROVAL' },
+            APPROVED:   { accent: COLORS.primary,    icon: 'checkmark-circle', label: 'APPROVED — READY TO VISIT' },
+            CHECKED_IN: { accent: COLORS.info,       icon: 'enter',           label: 'CHECKED IN — ENJOY YOUR VISIT' },
+          }[activeRequest.status as 'PENDING' | 'APPROVED' | 'CHECKED_IN']
+            ?? { accent: '#D97706', icon: 'time', label: 'AWAITING APPROVAL' };
+          const { accent, icon, label } = statusMeta;
           const scheduleDate = activeRequest.schedule?.startTime ? new Date(activeRequest.schedule.startTime) : null;
           const prisonerName = activeRequest.prisoner
             ? `${activeRequest.prisoner.firstName} ${activeRequest.prisoner.lastName}` : '—';
@@ -204,9 +213,9 @@ export const VisitorHomeScreen: React.FC = () => {
 
               <View style={{ flex: 1, padding: 14 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <Ionicons name={isApproved ? 'checkmark-circle' : 'time'} size={13} color={accent} />
+                  <Ionicons name={icon as any} size={13} color={accent} />
                   <Text style={{ color: accent, fontSize: 11, fontWeight: '700', letterSpacing: 0.3 }}>
-                    {isApproved ? 'APPROVED — READY TO VISIT' : 'AWAITING APPROVAL'}
+                    {label}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }} numberOfLines={1}>
