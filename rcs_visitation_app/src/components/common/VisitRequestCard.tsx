@@ -30,6 +30,15 @@ export const VisitRequestCard: React.FC<Props> = memo(({ request, onPress, showV
   const day   = scheduleDate?.getDate();
   const month = scheduleDate?.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
 
+  // Deliberately NOT auto-completed anywhere in the backend — an officer
+  // has to be the one to end a supervised visit (an automated system
+  // force-ending it could hide something that's actually still happening,
+  // e.g. an unfolding incident). This just makes it impossible to miss
+  // that a checked-in visit has run past its scheduled end time.
+  const isOverdue = request.status === 'CHECKED_IN'
+    && !!request.schedule?.endTime
+    && new Date(request.schedule.endTime) < new Date();
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -43,8 +52,8 @@ export const VisitRequestCard: React.FC<Props> = memo(({ request, onPress, showV
         marginBottom: 10,
         flexDirection: 'row',
         gap: 12,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        borderWidth: isOverdue ? 1.5 : 1,
+        borderColor: isOverdue ? COLORS.error : COLORS.border,
       }}
     >
       {/* Calendar-day chip — the same functional date reference used on
@@ -53,17 +62,25 @@ export const VisitRequestCard: React.FC<Props> = memo(({ request, onPress, showV
           instead of an arbitrary status-colour stripe. */}
       <View style={{
         width: 52, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: `${COLORS.primary}0D`, borderRadius: 12, paddingVertical: 10,
+        backgroundColor: isOverdue ? `${COLORS.error}0D` : `${COLORS.primary}0D`, borderRadius: 12, paddingVertical: 10,
       }}>
-        <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.primary, letterSpacing: 0.5 }}>
+        <Text style={{ fontSize: 11, fontWeight: '700', color: isOverdue ? COLORS.error : COLORS.primary, letterSpacing: 0.5 }}>
           {month ?? '—'}
         </Text>
-        <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.primary, marginTop: 1 }}>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: isOverdue ? COLORS.error : COLORS.primary, marginTop: 1 }}>
           {day ?? '—'}
         </Text>
       </View>
 
       <View style={{ flex: 1 }}>
+        {isOverdue && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+            <Ionicons name="alert-circle" size={13} color={COLORS.error} />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.error, letterSpacing: 0.3 }}>
+              OVERDUE FOR CHECK-OUT
+            </Text>
+          </View>
+        )}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1, paddingRight: 8 }}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }} numberOfLines={1}>

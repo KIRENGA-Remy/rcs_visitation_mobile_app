@@ -251,6 +251,7 @@ export interface OverviewStats {
   visitRequests: { total: number; pending: number; approvedToday: number };
   todayCheckins: number;
   flaggedIncidents: number;
+  overdueCheckouts: number;
   pendingContactRequests: number;
   users: { total: number; visitors: number };
 }

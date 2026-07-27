@@ -41,6 +41,8 @@ export const OfficerDashboardScreen: React.FC = () => {
 
   const { data: overview, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: QUERY_KEYS.OVERVIEW,
+    // Same fix as AdminDashboardScreen — see the comment there for why
+    // passing the raw function reference as queryFn can silently fail.
     queryFn:  () => reportsApi.overview(),
     staleTime: 60 * 1000,
   });
@@ -54,10 +56,10 @@ export const OfficerDashboardScreen: React.FC = () => {
   const refresh = useCallback(() => { refetchStats(); refetchReqs(); }, []);
 
   const statCards = useMemo(() => [
+    { label: 'Overdue Check-outs',   value: overview?.overdueCheckouts ?? 0,          icon: 'alert-circle',  color: COLORS.error   },
     { label: t('today_checkins'),    value: overview?.todayCheckins ?? 0,             icon: 'enter',         color: COLORS.primary },
     { label: t('pending_requests'),  value: overview?.visitRequests?.pending ?? 0,    icon: 'time',          color: COLORS.warning },
     { label: 'Contact Requests',     value: overview?.pendingContactRequests ?? 0,    icon: 'person-add',   color: COLORS.accent  },
-    // { label: t('flagged_incidents'), value: overview?.flaggedIncidents ?? 0,          icon: 'alert-circle',  color: COLORS.error   },
     { label: t('APPROVED'),          value: overview?.visitRequests?.approvedToday ?? 0, icon: 'checkmark-circle', color: COLORS.success },
   ], [overview, t]);
 
@@ -131,7 +133,7 @@ export const OfficerDashboardScreen: React.FC = () => {
         {/* Stats grid */}
         {statsLoading
           ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {[1,2,3,4].map(i => (
+              {[1,2,3,4,5].map(i => (
                 <View key={i} style={{ width: '47%', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 14, height: 88 }} />
               ))}
             </View>
