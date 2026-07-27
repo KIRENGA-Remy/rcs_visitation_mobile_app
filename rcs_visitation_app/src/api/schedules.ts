@@ -33,7 +33,7 @@ export const schedulesApi = {
   },
 
   update: async (id: string, body: {
-    startTime?: string; endTime?: string; label?: string; maxCapacity?: number; notes?: string;
+    prisonId?: string; startTime?: string; endTime?: string; label?: string; maxCapacity?: number; notes?: string;
   }): Promise<VisitSchedule> => {
     const res = await client.put<ApiResponse<VisitSchedule>>(`/schedules/${id}`, body);
     return res.data.data!;

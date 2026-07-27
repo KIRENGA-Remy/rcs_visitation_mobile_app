@@ -71,7 +71,8 @@ export const ScheduleFormScreen: React.FC = () => {
   const { data: prisonsData } = useQuery({
     queryKey: ['prisons', 'all'],
     queryFn: () => prisonsApi.list({ limit: 100 }),
-    enabled: !isEdit,
+    // Previously only fetched in create mode — the prison picker below now
+    // shows in edit mode too, so this needs to run there as well.
   });
 
   const [prisonId, setPrisonId] = useState('');
@@ -87,6 +88,8 @@ export const ScheduleFormScreen: React.FC = () => {
   useEffect(() => {
     if (existing) {
       setLabel(existing.label ?? '');
+      setPrisonId(existing.prisonId);
+      setDate(new Date(existing.startTime));
       setStartTime(new Date(existing.startTime));
       setEndTime(new Date(existing.endTime));
       setMaxCapacity(String(existing.maxCapacity));
@@ -115,13 +118,13 @@ export const ScheduleFormScreen: React.FC = () => {
       Toast.show({ type: 'error', text1: 'Enter a valid capacity' });
       return;
     }
-    if (!isEdit && !prisonId) {
+    if (!prisonId) {
       Toast.show({ type: 'error', text1: 'Select a prison' });
       return;
     }
 
-    const combinedStart = isEdit ? startTime : combineDateAndTime(date, startTime);
-    const combinedEnd   = isEdit ? endTime   : combineDateAndTime(date, endTime);
+    const combinedStart = combineDateAndTime(date, startTime);
+    const combinedEnd   = combineDateAndTime(date, endTime);
 
     if (combinedEnd <= combinedStart) {
       Toast.show({ type: 'error', text1: 'End time must be after start time' });
@@ -132,6 +135,7 @@ export const ScheduleFormScreen: React.FC = () => {
     try {
       if (isEdit) {
         await schedulesApi.update(editId!, {
+          prisonId,
           startTime: combinedStart.toISOString(),
           endTime: combinedEnd.toISOString(),
           label: label || undefined,
@@ -171,31 +175,35 @@ export const ScheduleFormScreen: React.FC = () => {
       <ScreenHeader title={isEdit ? 'Edit Schedule' : 'New Schedule'} onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+        {/* Prison and Date are editable in both create and edit mode now —
+           previously edit mode hid these entirely, meaning an admin had no
+           way to move a schedule to a different facility or correct a
+           wrong date after creating it. */}
+        <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 8 }}>Prison *</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {prisonsData?.data?.map((p) => (
+              <TouchableOpacity
+                key={p.id}
+                onPress={() => setPrisonId(p.id)}
+                style={{
+                  paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
+                  backgroundColor: prisonId === p.id ? COLORS.primary : COLORS.white,
+                  borderWidth: 1.5, borderColor: prisonId === p.id ? COLORS.primary : COLORS.border,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '600', color: prisonId === p.id ? COLORS.white : COLORS.text }}>
+                  {p.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        <PickerField label="Date" mode="date" value={date} onChange={setDate} minimumDate={new Date()} />
+
         {!isEdit && (
           <>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 8 }}>Prison *</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {prisonsData?.data?.map((p) => (
-                  <TouchableOpacity
-                    key={p.id}
-                    onPress={() => setPrisonId(p.id)}
-                    style={{
-                      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
-                      backgroundColor: prisonId === p.id ? COLORS.primary : COLORS.white,
-                      borderWidth: 1.5, borderColor: prisonId === p.id ? COLORS.primary : COLORS.border,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: prisonId === p.id ? COLORS.white : COLORS.text }}>
-                      {p.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            <PickerField label="Date" mode="date" value={date} onChange={setDate} minimumDate={new Date()} />
-
             <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 8 }}>Visit Type</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
               {VISIT_TYPES.map((vt) => (
