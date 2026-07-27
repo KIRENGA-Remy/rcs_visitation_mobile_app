@@ -90,6 +90,7 @@ export class ScheduleService {
         ...dto,
         startTime: dto.startTime ? new Date(dto.startTime) : undefined,
         endTime:   dto.endTime   ? new Date(dto.endTime)   : undefined,
+        date: dto.startTime ? new Date(new Date(dto.startTime).toDateString()) : undefined,
       },
     });
 

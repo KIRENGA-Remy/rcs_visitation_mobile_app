@@ -27,6 +27,7 @@ export const bulkCreateScheduleSchema = z.object({
 });
 
 export const updateScheduleSchema = z.object({
+  prisonId:    z.string().uuid().optional(),
   startTime:   z.string().datetime().optional(),
   endTime:     z.string().datetime().optional(),
   label:       z.string().optional(),
