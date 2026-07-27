@@ -45,8 +45,13 @@ describe('AuthService.register', () => {
 
   it('never returns passwordHash in the response', async () => {
     prismaMock.user.findFirst.mockResolvedValue(null);
-    const created = makeUser();
-    prismaMock.user.create.mockResolvedValue(created as any);
+    // jest-mock-extended's mocks return exactly what you tell them to —
+    // they don't simulate Prisma's actual `select`-based field filtering.
+    // So the meaningful check here is against a mock shaped the way a real
+    // `select: AUTH_USER_SELECT` query would actually come back (no
+    // passwordHash at all), not just "does the code path run".
+    const { passwordHash: _drop, ...createdWithoutHash } = makeUser();
+    prismaMock.user.create.mockResolvedValue(createdWithoutHash as any);
 
     const result = await svc.register(REGISTER_DTO);
     expect((result.user as any).passwordHash).toBeUndefined();
@@ -100,6 +105,7 @@ describe('AuthService.login', () => {
     const hash = await bcrypt.hash('Password@123', 1);
     prismaMock.user.findFirst.mockResolvedValue(makeUser({ passwordHash: hash }) as any);
     prismaMock.user.update.mockResolvedValue(makeUser() as any);
+    prismaMock.user.findUniqueOrThrow.mockResolvedValue(makeUser() as any);
 
     const result = await svc.login({ emailOrPhone: 'amina@test.rw', password: 'Password@123' });
     expect(result.accessToken).toBeDefined();
@@ -111,6 +117,7 @@ describe('AuthService.login', () => {
     const hash = await bcrypt.hash('Password@123', 1);
     prismaMock.user.findFirst.mockResolvedValue(makeUser({ passwordHash: hash }) as any);
     prismaMock.user.update.mockResolvedValue(makeUser() as any);
+    prismaMock.user.findUniqueOrThrow.mockResolvedValue(makeUser() as any);
 
     await svc.login({ emailOrPhone: 'amina@test.rw', password: 'Password@123' });
     expect(prismaMock.user.update).toHaveBeenCalledWith(
@@ -122,6 +129,8 @@ describe('AuthService.login', () => {
     const hash = await bcrypt.hash('Password@123', 1);
     prismaMock.user.findFirst.mockResolvedValue(makeUser({ passwordHash: hash }) as any);
     prismaMock.user.update.mockResolvedValue(makeUser() as any);
+    const { passwordHash: _drop, ...userWithoutHash } = makeUser();
+    prismaMock.user.findUniqueOrThrow.mockResolvedValue(userWithoutHash as any);
 
     const result = await svc.login({ emailOrPhone: 'amina@test.rw', password: 'Password@123' });
     expect((result.user as any).passwordHash).toBeUndefined();

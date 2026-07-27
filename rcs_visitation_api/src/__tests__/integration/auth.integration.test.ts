@@ -63,7 +63,8 @@ describe('POST /api/v1/auth/register', () => {
 
   it('response does not contain passwordHash', async () => {
     prismaMock.user.findFirst.mockResolvedValue(null);
-    prismaMock.user.create.mockResolvedValue(makeUser() as any);
+    const { passwordHash: _drop, ...createdWithoutHash } = makeUser();
+    prismaMock.user.create.mockResolvedValue(createdWithoutHash as any);
     const res = await request(app).post('/api/v1/auth/register').send(VALID_BODY);
     const body = JSON.stringify(res.body);
     expect(body).not.toContain('passwordHash');
@@ -75,6 +76,7 @@ describe('POST /api/v1/auth/login', () => {
     const hash = await bcrypt.hash('Password@123', 1);
     prismaMock.user.findFirst.mockResolvedValue(makeUser({ passwordHash: hash }) as any);
     prismaMock.user.update.mockResolvedValue(makeUser() as any);
+    prismaMock.user.findUniqueOrThrow.mockResolvedValue(makeUser() as any);
 
     const res = await request(app).post('/api/v1/auth/login')
       .send({ emailOrPhone: 'visitor@test.rw', password: 'Password@123' });
