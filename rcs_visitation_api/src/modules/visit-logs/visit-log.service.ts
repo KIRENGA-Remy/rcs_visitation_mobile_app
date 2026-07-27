@@ -133,7 +133,7 @@ export class VisitLogService {
     });
   }
 
-  async findAll(query: { prisonId?: string; date?: string; flagged?: string; page?: unknown; limit?: unknown }) {
+  async findAll(query: { prisonId?: string; date?: string; flagged?: string; page?: unknown; limit?: unknown }, requestorId: string, requestorRole: string) {
     const { page, limit, skip } = parsePagination(query);
     const where: any = {};
     if (query.flagged === 'true') where.incidentFlagged = true;
@@ -141,6 +141,15 @@ export class VisitLogService {
       const d = new Date(query.date);
       const next = new Date(d); next.setDate(next.getDate() + 1);
       where.actualCheckinTime = { gte: d, lt: next };
+    }
+    // Same scoping as visit-requests — an officer should only see activity
+    // for the prison they're actually assigned to, not every check-in/out
+    // across every facility in the system.
+    if (requestorRole === 'PRISON_OFFICER') {
+      const officer = await prisma.user.findUnique({ where: { id: requestorId }, select: { assignedPrisonId: true } });
+      if (officer?.assignedPrisonId) {
+        where.visitRequest = { schedule: { prisonId: officer.assignedPrisonId } };
+      }
     }
     const [logs, total] = await Promise.all([
       prisma.visitLog.findMany({

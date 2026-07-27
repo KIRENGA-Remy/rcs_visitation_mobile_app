@@ -27,7 +27,7 @@ export class VisitLogController {
   }
   async findAll(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { logs, pagination } = await visitLogService.findAll(req.query as any);
+      const { logs, pagination } = await visitLogService.findAll(req.query as any, req.user!.id, req.user!.role);
       sendSuccess(res, logs, 'Visit logs retrieved', 200, pagination);
     } catch (err) { next(err); }
   }
