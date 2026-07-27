@@ -51,6 +51,14 @@ export class ScheduleController {
       next(err);
     }
   }
+  async delete(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await scheduleService.delete(req.params.id, req.user!.id), 'Schedule deleted'); }
+    catch (err: any) {
+      if (err.message?.includes('Only the admin who created')) { sendError(res, err.message, 403); return; }
+      if (err.message?.includes('Cannot delete')) { sendError(res, err.message, 409); return; }
+      next(err);
+    }
+  }
 }
 
 export const scheduleController = new ScheduleController();

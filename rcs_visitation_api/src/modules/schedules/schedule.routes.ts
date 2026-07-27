@@ -22,5 +22,6 @@ router.post('/',          authenticate, authorize('ADMIN'), validate(createSched
 router.put('/:id',         authenticate, authorize('ADMIN'), validate(updateScheduleSchema), scheduleController.update.bind(scheduleController));
 router.patch('/:id/cancel', authenticate, authorize('ADMIN'), scheduleController.cancel.bind(scheduleController));
 router.patch('/:id/reopen', authenticate, authorize('ADMIN'), scheduleController.reopen.bind(scheduleController));
+router.delete('/:id',       authenticate, authorize('ADMIN'), scheduleController.delete.bind(scheduleController));
 
 export default router;

@@ -18,6 +18,24 @@ export class ScheduleService {
     }
   }
 
+  /**
+   * There's no cron/job scheduler anywhere in this backend, so a schedule
+   * whose time has passed doesn't flip itself to expired on its own. This
+   * runs a cheap, targeted update (only rows that are OPEN and already
+   * past their end time) right before every listing call instead — the
+   * DB state becomes accurate the next time anyone actually looks, which
+   * is the only time it matters anyway. Reuses the existing CLOSED status
+   * (already in the schema, already commented "slot time has passed" —
+   * no need for a second, redundant "EXPIRED" value); the mobile app
+   * labels CLOSED as "Expired" for schedules specifically.
+   */
+  private async expirePastSchedules() {
+    await prisma.visitSchedule.updateMany({
+      where: { status: 'OPEN', endTime: { lt: new Date() } },
+      data: { status: 'CLOSED' },
+    });
+  }
+
   async create(dto: CreateScheduleDto, createdByUserId: string) {
     const schedule = await prisma.visitSchedule.create({
       data: {
@@ -53,6 +71,7 @@ export class ScheduleService {
    * perfectly valid to view/edit/cancel.
    */
   async findAllForAdmin(query: { prisonId?: string; status?: string; page?: unknown; limit?: unknown }) {
+    await this.expirePastSchedules();
     const { page, limit, skip } = parsePagination(query);
     const where: any = {};
     if (query.prisonId) where.prisonId = query.prisonId;
@@ -90,6 +109,13 @@ export class ScheduleService {
         ...dto,
         startTime: dto.startTime ? new Date(dto.startTime) : undefined,
         endTime:   dto.endTime   ? new Date(dto.endTime)   : undefined,
+        // BUG FIX: `date` is a separate column from `startTime` (used for
+        // day-based lookups independent of exact time), and this update
+        // never kept it in sync — changing startTime to a different
+        // calendar day left `date` silently pointing at the old day. Since
+        // the mobile edit screen didn't even expose a date picker before
+        // this fix, this was latent until now, but needs handling as soon
+        // as the date becomes editable.
         date: dto.startTime ? new Date(new Date(dto.startTime).toDateString()) : undefined,
       },
     });
@@ -132,6 +158,32 @@ export class ScheduleService {
     );
 
     return updated;
+  }
+
+  /**
+   * Hard delete — only the owning admin, and only when nothing real is
+   * attached to it. VisitRequest.scheduleId has no cascade rule, so the
+   * database itself would refuse this if any request (even a cancelled
+   * one) still references this schedule; checking first turns that into a
+   * clear message instead of a raw constraint-violation error. A schedule
+   * with real history should be cancelled, not deleted — deleting it would
+   * either fail outright or, if cascaded, silently destroy genuine visit
+   * records. This is deliberately stricter than "admin can delete
+   * anything" for that reason.
+   */
+  async delete(id: string, requestorId: string) {
+    const schedule = await prisma.visitSchedule.findUniqueOrThrow({ where: { id } });
+    this.assertOwner(schedule, requestorId);
+
+    const requestCount = await prisma.visitRequest.count({ where: { scheduleId: id } });
+    if (requestCount > 0) {
+      throw new Error(
+        `Cannot delete — ${requestCount} visit request${requestCount === 1 ? '' : 's'} still reference${requestCount === 1 ? 's' : ''} this schedule. Cancel it instead to preserve those records.`
+      );
+    }
+
+    await prisma.visitSchedule.delete({ where: { id } });
+    return { success: true };
   }
 
   async cancel(id: string, requestorId: string) {
@@ -192,6 +244,7 @@ export class ScheduleService {
   }
 
   async findAvailable(query: { prisonId?: string; date?: string; visitType?: string; page?: unknown; limit?: unknown }) {
+    await this.expirePastSchedules();
     const { page, limit, skip } = parsePagination(query);
     const where: any = { status: 'OPEN' };
     if (query.prisonId)  where.prisonId  = query.prisonId;
