@@ -1,9 +1,22 @@
 import client from './client';
 import type { OverviewStats, DailyVisit, PeakHour, PrisonerActivity, ApiResponse } from '@types';
 
+export interface AnalyticsBreakdown {
+  prisonersByStatus:    Record<string, number>;
+  usersByRole:          Record<string, number>;
+  incidentsByType:      Record<string, number>;
+  recentlyActiveByRole: Record<string, number>;
+  recentActivityWindowMinutes: number;
+}
+
 export const reportsApi = {
   overview: async (params?: { prisonId?: string }): Promise<OverviewStats> => {
     const res = await client.get<ApiResponse<OverviewStats>>('/reports/overview', { params });
+    return res.data.data!;
+  },
+
+  analyticsBreakdown: async (): Promise<AnalyticsBreakdown> => {
+    const res = await client.get<ApiResponse<AnalyticsBreakdown>>('/reports/analytics');
     return res.data.data!;
   },
 

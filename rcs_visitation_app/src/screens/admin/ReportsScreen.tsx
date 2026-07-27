@@ -8,10 +8,30 @@ import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LoadingScreen } from '@components/common/LoadingScreen';
 import { Card } from '@components/common/Card';
+import { DonutChart } from '@components/common/DonutChart';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS, QUERY_KEYS } from '@constants';
 import { reportsApi } from '@api/reports';
 import { formatDuration } from '@utils';
+
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Active', TRANSFERRED: 'Transferred', RELEASED: 'Released',
+  RESTRICTED: 'Restricted', DECEASED: 'Deceased',
+};
+const STATUS_COLORS: Record<string, string> = {
+  ACTIVE: COLORS.success, TRANSFERRED: COLORS.info, RELEASED: COLORS.textMuted,
+  RESTRICTED: COLORS.warning, DECEASED: '#6B7280',
+};
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Admins', PRISON_OFFICER: 'Officers', VISITOR: 'Visitors',
+};
+const ROLE_COLORS: Record<string, string> = {
+  ADMIN: COLORS.error, PRISON_OFFICER: COLORS.primary, VISITOR: COLORS.accent,
+};
+const INCIDENT_LABELS: Record<string, string> = {
+  CONTRABAND: 'Contraband', BEHAVIOUR: 'Behaviour', OVERSTAY: 'Overstay',
+  UNAUTHORIZED: 'Unauthorized', OTHER: 'Other',
+};
 
 export const ReportsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -42,9 +62,25 @@ export const ReportsScreen: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: breakdown } = useQuery({
+    queryKey: ['reports', 'analytics'],
+    queryFn:  () => reportsApi.analyticsBreakdown(),
+    staleTime: 60 * 1000,
+  });
+
   const last7Days = dailyData?.slice(-7) ?? [];
   const maxVisits = Math.max(...last7Days.map(d => d.totalVisits), 1);
   const top5Peak  = [...(peakData ?? [])].sort((a, b) => b.visitCount - a.visitCount).slice(0, 5);
+
+  const prisonerStatusData = Object.entries(breakdown?.prisonersByStatus ?? {}).map(([status, value]) => ({
+    label: STATUS_LABELS[status] ?? status, value, color: STATUS_COLORS[status] ?? COLORS.textMuted,
+  }));
+  const userRoleData = Object.entries(breakdown?.usersByRole ?? {}).map(([role, value]) => ({
+    label: ROLE_LABELS[role] ?? role, value, color: ROLE_COLORS[role] ?? COLORS.textMuted,
+  }));
+  const incidentEntries = Object.entries(breakdown?.incidentsByType ?? {}).filter(([type]) => type !== 'NONE');
+  const maxIncidents = Math.max(...incidentEntries.map(([, v]) => v), 1);
+  const totalRecentlyActive = Object.values(breakdown?.recentlyActiveByRole ?? {}).reduce((a, b) => a + b, 0);
 
   if (overviewLoading) return <LoadingScreen />;
 
@@ -163,6 +199,94 @@ export const ReportsScreen: React.FC = () => {
                   </View>
                   <View style={{ backgroundColor: `${COLORS.primary}15`, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
                     <Text style={{ fontWeight: '800', color: COLORS.primary, fontSize: 14 }}>{a.visitCount}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
+        {/* Recently active — approximated from lastLoginAt within a rolling
+           window, not a true live-presence count (this backend has no
+           session/heartbeat tracking), but it's real, current data with
+           zero admin interaction either way. */}
+        <Card variant="elevated" style={{ marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }}>
+              Recently Active
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.success }} />
+              <Text style={{ fontSize: 11, color: COLORS.textMuted }}>
+                last {breakdown?.recentActivityWindowMinutes ?? 15} min
+              </Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 32, fontWeight: '800', color: COLORS.text, marginTop: 6 }}>
+            {totalRecentlyActive}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
+            {Object.entries(ROLE_LABELS).map(([role, label]) => (
+              <View key={role} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ROLE_COLORS[role] }} />
+                <Text style={{ fontSize: 12, color: COLORS.textMuted }}>
+                  {label}: {breakdown?.recentlyActiveByRole?.[role] ?? 0}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+
+        {/* Prisoner status breakdown — real donut chart */}
+        <Card variant="elevated" style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 16 }}>
+            Prisoners by Status
+          </Text>
+          {prisonerStatusData.every(d => d.value === 0) ? (
+            <Text style={{ color: COLORS.textMuted, textAlign: 'center', paddingVertical: 12 }}>No data</Text>
+          ) : (
+            <DonutChart data={prisonerStatusData} />
+          )}
+        </Card>
+
+        {/* User role breakdown — real donut chart */}
+        <Card variant="elevated" style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 16 }}>
+            Users by Role
+          </Text>
+          {userRoleData.every(d => d.value === 0) ? (
+            <Text style={{ color: COLORS.textMuted, textAlign: 'center', paddingVertical: 12 }}>No data</Text>
+          ) : (
+            <DonutChart data={userRoleData} />
+          )}
+        </Card>
+
+        {/* Incident type breakdown — real bar chart, same custom pattern as
+           Peak Hours above. Only flagged incidents are counted here; NONE
+           (the default, no-incident value) is deliberately excluded since
+           it isn't an "issue" to chart. */}
+        <Card variant="elevated" style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 16 }}>
+            Flagged Incidents by Type
+          </Text>
+          {incidentEntries.length === 0 ? (
+            <Text style={{ color: COLORS.textMuted, textAlign: 'center', paddingVertical: 12 }}>
+              No incidents flagged — clean record.
+            </Text>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {incidentEntries.map(([type, count]) => (
+                <View key={type}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: COLORS.text }}>
+                      {INCIDENT_LABELS[type] ?? type}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: COLORS.textMuted }}>{count}</Text>
+                  </View>
+                  <View style={{ height: 8, backgroundColor: COLORS.surface, borderRadius: 4 }}>
+                    <View style={{
+                      height: 8, borderRadius: 4, width: `${(count / maxIncidents) * 100}%`,
+                      backgroundColor: COLORS.error,
+                    }} />
                   </View>
                 </View>
               ))}
