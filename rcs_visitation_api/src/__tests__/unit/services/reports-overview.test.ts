@@ -26,7 +26,8 @@ describe('ReportsService.overview — real numbers actually flow through', () =>
       .mockResolvedValueOnce(3);  // approvedToday
     prismaMock.visitLog.count
       .mockResolvedValueOnce(5)   // todayCheckins
-      .mockResolvedValueOnce(2);  // flaggedIncidents
+      .mockResolvedValueOnce(2)   // flaggedIncidents
+      .mockResolvedValueOnce(1);  // overdueCheckouts
     prismaMock.user.count
       .mockResolvedValueOnce(50)  // total users
       .mockResolvedValueOnce(30); // visitors
@@ -41,6 +42,7 @@ describe('ReportsService.overview — real numbers actually flow through', () =>
       visitRequests: { total: 19, pending: 7, approvedToday: 3 },
       todayCheckins: 5,
       flaggedIncidents: 2,
+      overdueCheckouts: 1,
       pendingContactRequests: 6,
       users: { total: 50, visitors: 30 },
     });

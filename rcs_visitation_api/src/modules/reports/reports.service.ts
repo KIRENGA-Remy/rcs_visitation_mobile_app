@@ -129,6 +129,7 @@ export class ReportsService {
       todayCheckins, flaggedIncidents,
       totalUsers, totalVisitors,
       totalPrisons, pendingContactRequests,
+      overdueCheckouts,
     ] = await Promise.all([
       prisma.prisoner.count({ where: prisonFilter }),
       prisma.prisoner.count({ where: { ...prisonFilter, status: 'ACTIVE' } }),
@@ -143,6 +144,16 @@ export class ReportsService {
       // Same "pending review" signal used by the contact-requests endpoints:
       // isActive:false AND approvedByUserId:null == not yet reviewed.
       prisma.approvedVisitorPrisoner.count({ where: { isActive: false, approvedByUserId: null } }),
+      // Still checked in, but the scheduled slot has already ended — the
+      // officer needs to actually check this person out; nothing does
+      // this automatically (see VisitRequestCard.tsx for why that's
+      // deliberate).
+      prisma.visitLog.count({
+        where: {
+          actualCheckoutTime: null,
+          visitRequest: { schedule: { endTime: { lt: new Date() }, ...(query.prisonId ? { prisonId: query.prisonId } : {}) } },
+        },
+      }),
     ]);
 
     return {
@@ -152,6 +163,7 @@ export class ReportsService {
       todayCheckins,
       flaggedIncidents,
       pendingContactRequests,
+      overdueCheckouts,
       users:            { total: totalUsers, visitors: totalVisitors },
     };
   }
