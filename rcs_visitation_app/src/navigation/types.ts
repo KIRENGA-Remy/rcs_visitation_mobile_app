@@ -1,6 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AuthStackParamList = {
+  Welcome:  undefined;
   Login:    undefined;
   Register: undefined;
   ActivateAccount: undefined;
@@ -30,9 +31,15 @@ export type VisitorStackParamList = {
   PrivacySecurity:      undefined;
 };
 
+export type OfficerTabParamList = {
+  Dashboard:     undefined;
+  PendingRequests: { initialTab?: 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED' } | undefined;
+  Notifications: undefined;
+  Profile:       undefined;
+};
+
 export type OfficerStackParamList = {
-  OfficerDashboard:   undefined;
-  PendingRequests:    { initialTab?: 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED' } | undefined;
+  OfficerTabs:        NavigatorScreenParams<OfficerTabParamList> | undefined;
   ContactRequests:    undefined;
   MyReports:          undefined;
   ReportUpload:       { reportRequestId?: string; presetTitle?: string } | undefined;
@@ -55,9 +62,15 @@ export type OfficerStackParamList = {
   PrivacySecurity:      undefined;
 };
 
+export type AdminTabParamList = {
+  Dashboard:     undefined;
+  Users:         undefined;
+  Notifications: undefined;
+  Profile:       undefined;
+};
+
 export type AdminStackParamList = {
-  AdminDashboard: undefined;
-  Users:          undefined;
+  AdminTabs:      NavigatorScreenParams<AdminTabParamList> | undefined;
   CreateOfficer:  undefined;
   CreateAdmin:    undefined;
   Prisoners:      undefined;
@@ -66,8 +79,6 @@ export type AdminStackParamList = {
   Schedules:      undefined;
   ScheduleForm:   { id?: string } | undefined;
   Reports:        undefined;
-  AdminLogs:      undefined;
-  ContactRequests:undefined;
   SubmittedReports: undefined;
   ReportViewer:     { fileUrl: string; fileName: string; fileMimeType?: string };
   RequestReport:    undefined;

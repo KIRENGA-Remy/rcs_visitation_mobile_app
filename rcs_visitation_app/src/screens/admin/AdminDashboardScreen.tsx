@@ -25,6 +25,16 @@ export const AdminDashboardScreen: React.FC = () => {
 
   const { data: stats, isLoading, refetch, isRefetching } = useQuery({
     queryKey: QUERY_KEYS.OVERVIEW,
+    // BUG FIX: was `queryFn: reportsApi.overview` — passing the function
+    // reference directly means React Query calls it with ITS OWN internal
+    // context object ({ queryKey, signal, meta }) as the argument, not the
+    // { prisonId } shape reportsApi.overview expects. That whole context
+    // object — including a live AbortSignal — then got shoved into axios's
+    // `params` and serialized into the URL query string, which is not
+    // something an AbortSignal can be safely turned into. This can silently
+    // fail the request, leaving `stats` undefined and every stat card
+    // falling back to its `?? 0` default at once — exactly the "all zeros"
+    // symptom, not a backend data problem.
     queryFn:  () => reportsApi.overview(),
     staleTime: 60 * 1000,
   });
@@ -40,6 +50,7 @@ export const AdminDashboardScreen: React.FC = () => {
     { label: t('manage_users'),     icon: 'people-outline',        screen: 'Users',       color: COLORS.info,    desc: 'View and manage all accounts' },
     { label: t('manage_prisoners'), icon: 'person-outline',        screen: 'Prisoners',   color: COLORS.primary, desc: 'Register and transfer prisoners' },
     { label: t('visit_schedules'),  icon: 'calendar-outline',      screen: 'Schedules',   color: COLORS.accent,  desc: 'Manage visiting time slots' },
+    { label: t('reports'),          icon: 'bar-chart-outline',     screen: 'Reports',     color: COLORS.success, desc: 'Analytics and insights' },
     { label: 'Submitted Reports',   icon: 'folder-open-outline',   screen: 'SubmittedReports', color: COLORS.info, desc: 'Documents submitted by officers' },
     { label: t('notifications'),    icon: 'notifications-outline', screen: 'Notifications', color: COLORS.error, desc: 'Send alerts and broadcasts' },
     { label: t('profile'),          icon: 'person-circle-outline', screen: 'Profile',     color: COLORS.textMuted, desc: 'Your account and settings' },
