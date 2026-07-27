@@ -155,6 +155,49 @@ export class ReportsService {
       users:            { total: totalUsers, visitors: totalVisitors },
     };
   }
+
+  /**
+   * Everything here is a pure aggregate query — nothing an admin has to
+   * author or maintain, same principle as overview(). "Recently active"
+   * approximates real-time presence using lastLoginAt within a rolling
+   * window, since there's no live session/heartbeat tracking in this
+   * backend — it's not the same as a true live "online right now" count,
+   * but it is real, current data with zero admin interaction.
+   */
+  async analyticsBreakdown() {
+    const recentWindow = new Date(Date.now() - 15 * 60 * 1000); // last 15 minutes
+
+    const [
+      prisonersByStatus,
+      usersByRole,
+      incidentsByType,
+      recentlyActiveByRole,
+    ] = await Promise.all([
+      prisma.prisoner.groupBy({ by: ['status'], _count: { _all: true } }),
+      prisma.user.groupBy({ by: ['role'], _count: { _all: true } }),
+      prisma.visitLog.groupBy({
+        by: ['incidentType'],
+        where: { incidentFlagged: true },
+        _count: { _all: true },
+      }),
+      prisma.user.groupBy({
+        by: ['role'],
+        where: { lastLoginAt: { gte: recentWindow } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const toMap = (rows: Array<Record<string, any> & { _count: { _all: number } }>, key: string) =>
+      Object.fromEntries(rows.map((r) => [r[key], r._count._all]));
+
+    return {
+      prisonersByStatus:    toMap(prisonersByStatus, 'status'),
+      usersByRole:          toMap(usersByRole, 'role'),
+      incidentsByType:      toMap(incidentsByType, 'incidentType'),
+      recentlyActiveByRole: toMap(recentlyActiveByRole, 'role'),
+      recentActivityWindowMinutes: 15,
+    };
+  }
 }
 
 export const reportsService = new ReportsService();

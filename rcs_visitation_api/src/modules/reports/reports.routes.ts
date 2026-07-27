@@ -11,6 +11,7 @@ const router = Router();
 
 // GET /api/v1/reports/overview             → dashboard stats
 router.get('/overview',          authenticate, authorize('ADMIN', 'PRISON_OFFICER'), reportsController.overview.bind(reportsController));
+router.get('/analytics',         authenticate, authorize('ADMIN', 'PRISON_OFFICER'), reportsController.analyticsBreakdown.bind(reportsController));
 
 // GET /api/v1/reports/daily-visits         → visits per day
 router.get('/daily-visits',      authenticate, authorize('ADMIN', 'PRISON_OFFICER'), reportsController.dailyVisits.bind(reportsController));

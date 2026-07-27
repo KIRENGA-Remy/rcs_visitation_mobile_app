@@ -23,6 +23,10 @@ export class ReportsController {
     try { sendSuccess(res, await reportsService.overview(req.query as any), 'Platform overview'); }
     catch (err) { next(err); }
   }
+  async analyticsBreakdown(req: AuthRequest, res: Response, next: NextFunction) {
+    try { sendSuccess(res, await reportsService.analyticsBreakdown(), 'Analytics breakdown'); }
+    catch (err) { next(err); }
+  }
 }
 
 export const reportsController = new ReportsController();
