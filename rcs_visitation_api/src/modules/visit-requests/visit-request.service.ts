@@ -224,10 +224,26 @@ export class VisitRequestService {
     });
   }
 
-  async allPrisonRequests(query: { status?: string; page?: unknown; limit?: unknown }) {
+  /**
+   * Officers should only ever see visitors/requests for the prison they're
+   * actually assigned to — not every request across every facility in the
+   * system. Admins pass role !== 'PRISON_OFFICER' and always get the full
+   * cross-prison view. An officer not yet assigned to a specific facility
+   * (assignedPrisonId null) falls back to the previous unscoped behaviour
+   * rather than being shown literally nothing.
+   */
+  async allPrisonRequests(query: { status?: string; page?: unknown; limit?: unknown }, requestorId: string, requestorRole: string) {
     const { page, limit, skip } = parsePagination(query);
     const where: any = {};
     if (query.status) where.status = query.status;
+
+    if (requestorRole === 'PRISON_OFFICER') {
+      const officer = await prisma.user.findUnique({ where: { id: requestorId }, select: { assignedPrisonId: true } });
+      if (officer?.assignedPrisonId) {
+        where.schedule = { prisonId: officer.assignedPrisonId };
+      }
+    }
+
     const [requests, total] = await Promise.all([
       prisma.visitRequest.findMany({
         where, skip, take: limit,

@@ -49,7 +49,7 @@ export class VisitRequestController {
 
   async allPrisonRequests(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { requests, pagination } = await visitRequestService.allPrisonRequests(req.query as any);
+      const { requests, pagination } = await visitRequestService.allPrisonRequests(req.query as any, req.user!.id, req.user!.role);
       sendSuccess(res, requests, 'Visit requests retrieved', 200, pagination);
     } catch (err) { next(err); }
   }
