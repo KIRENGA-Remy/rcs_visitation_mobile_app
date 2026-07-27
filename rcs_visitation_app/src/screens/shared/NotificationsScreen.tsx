@@ -32,19 +32,19 @@ const NotificationSkeleton: React.FC = () => (
 );
 
 export const NotificationsScreen: React.FC = () => {
-  const navigation               = useNavigation();
+  const navigation               = useNavigation<any>();
   const qc                       = useQueryClient();
   const { t }                    = useTranslation();
   const { data, isLoading, refetch, isRefetching } = useNotifications();
   const { mutate: markAllRead }  = useMarkAllRead();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleMarkRead = useCallback(async (id: string) => {
-    try {
-      await notificationsApi.markRead(id);
-      refetch();
-    } catch {}
-  }, [refetch]);
+  const handleOpenNotification = useCallback(async (item: any) => {
+    // Mark read in the background — don't block navigation on it, and
+    // don't fail the whole tap if this one request has trouble.
+    notificationsApi.markRead(item.id).then(() => refetch()).catch(() => {});
+    navigation.navigate('NotificationDetail', { notification: item });
+  }, [navigation, refetch]);
 
   const handleDelete = useCallback((id: string) => {
     Alert.alert(t('delete_notification'), t('delete_notification_confirm'), [
@@ -151,7 +151,7 @@ export const NotificationsScreen: React.FC = () => {
                 <View style={{ flex: 1 }}>
                   <NotificationCard
                     notification={item}
-                    onPress={() => handleMarkRead(item.id)}
+                    onPress={() => handleOpenNotification(item)}
                   />
                 </View>
                 <TouchableOpacity
