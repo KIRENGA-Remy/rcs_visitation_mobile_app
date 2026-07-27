@@ -47,4 +47,8 @@ export const schedulesApi = {
     const res = await client.patch<ApiResponse<VisitSchedule>>(`/schedules/${id}/reopen`);
     return res.data.data!;
   },
+
+  delete: async (id: string): Promise<void> => {
+    await client.delete(`/schedules/${id}`);
+  },
 };

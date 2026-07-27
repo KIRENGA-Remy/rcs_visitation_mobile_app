@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, FlatList, StatusBar, RefreshControl, TouchableOpacity, Alert
 } from 'react-native';
@@ -13,24 +13,37 @@ import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS, QUERY_KEYS, VISIT_TYPE_LABELS } from '@constants';
 import { useAuthStore } from '@stores/authStore';
 import { schedulesApi } from '@api/schedules';
-import { formatDate, formatTime, extractApiError } from '@utils';
+import { formatTime, extractApiError } from '@utils';
 
 export const SchedulesScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'ADMIN';
+
   // Officers get read-only access; among admins, only the schedule's own
-  // creator may edit/cancel/reopen it — matching the backend's enforcement
-  // (a schedule with no recorded creator, e.g. legacy data, is treated as
-  // unclaimed and editable by any admin, same leniency as the backend).
+  // creator may edit/cancel/reopen/delete it — matching the backend's
+  // enforcement (a schedule with no recorded creator, e.g. legacy data, is
+  // treated as unclaimed and editable by any admin, same leniency as the
+  // backend).
   const canManage = (schedule: { createdByUserId?: string | null }) =>
-    user?.role === 'ADMIN' && (!schedule.createdByUserId || schedule.createdByUserId === user.id);
+    isAdmin && (!schedule.createdByUserId || schedule.createdByUserId === user!.id);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: QUERY_KEYS.SCHEDULES,
     queryFn:  () => schedulesApi.listForAdmin({ limit: 50 }),
     staleTime: 30 * 1000,
   });
+
+  // Officers only ever need to see bookable slots — they can't act on any
+  // of this anyway, so a full history of cancelled/expired schedules is
+  // just noise for them. Admin still sees everything, since managing the
+  // full lifecycle (including expired/cancelled ones, to delete them) is
+  // the point of this screen for that role.
+  const visibleSchedules = useMemo(() => {
+    const all = data?.data ?? [];
+    return isAdmin ? all : all.filter((s) => s.status === 'OPEN');
+  }, [data?.data, isAdmin]);
 
   const handleCancel = (scheduleId: string) => {
     Alert.alert(
@@ -65,41 +78,77 @@ export const SchedulesScreen: React.FC = () => {
     }
   };
 
+  const handleDelete = (scheduleId: string) => {
+    Alert.alert(
+      'Delete Schedule',
+      'This permanently removes the schedule. This cannot be undone.',
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await schedulesApi.delete(scheduleId);
+              qc.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULES });
+              Toast.show({ type: 'success', text1: 'Schedule deleted' });
+            } catch (err: any) {
+              Toast.show({ type: 'error', text1: extractApiError(err) });
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.surface }}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
       <ScreenHeader
         title="Visit Schedules"
-        subtitle="Manage visiting time slots"
+        subtitle={isAdmin ? 'Manage visiting time slots' : 'Open time slots'}
         onBack={() => navigation.goBack()}
       />
 
       {isLoading ? <LoadingScreen /> : (
         <FlatList
-          data={data?.data ?? []}
+          data={visibleSchedules}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 80, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} />}
-          ListEmptyComponent={<EmptyState icon="calendar-outline" title="No schedules found" description="No visit time slots have been created yet." />}
+          ListEmptyComponent={
+            <EmptyState
+              icon="calendar-outline"
+              title="No schedules found"
+              description={isAdmin ? 'No visit time slots have been created yet.' : 'No open time slots right now.'}
+            />
+          }
           renderItem={({ item }) => {
             const dateObj = new Date(item.startTime);
             const day     = dateObj.getDate();
             const month   = dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-            const isPast  = new Date(item.endTime) < new Date();
+            // CLOSED means "already expired" for schedules specifically —
+            // reusing the existing enum value rather than adding a
+            // redundant one, but displayed and reasoned about here as
+            // "Expired" since that's the meaningful state for this screen.
+            const isExpired = item.status === 'CLOSED';
             const capacityRatio = item.maxCapacity > 0 ? item.currentBookings / item.maxCapacity : 0;
             const capacityColor = capacityRatio >= 1 ? COLORS.error : capacityRatio >= 0.7 ? COLORS.warning : COLORS.success;
 
             const manageable = canManage(item);
+            // Once expired, editing the time/capacity/etc no longer makes
+            // sense — the only thing left to do with it is delete it.
+            const editableByTap = manageable && !isExpired;
 
             return (
               <TouchableOpacity
-                activeOpacity={manageable ? 0.85 : 1}
-                onPress={manageable ? () => navigation.navigate('ScheduleForm', { id: item.id }) : undefined}
+                activeOpacity={editableByTap ? 0.85 : 1}
+                onPress={editableByTap ? () => navigation.navigate('ScheduleForm', { id: item.id }) : undefined}
                 style={{
                   backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
                   marginBottom: 10, flexDirection: 'row', gap: 12,
                   borderWidth: 1, borderColor: COLORS.border,
-                  opacity: isPast ? 0.65 : 1,
+                  opacity: isExpired ? 0.65 : 1,
                 }}
               >
                 {/* Calendar-day chip — a real, functional date reference
@@ -122,7 +171,7 @@ export const SchedulesScreen: React.FC = () => {
                         {item.prison?.name} · {formatTime(item.startTime)}–{formatTime(item.endTime)}
                       </Text>
                     </View>
-                    <StatusBadge status={item.status} size="sm" />
+                    <StatusBadge status={item.status} label={isExpired ? 'EXPIRED' : undefined} size="sm" />
                   </View>
 
                   {/* Capacity as an actual proportion, not just a number pair */}
@@ -143,26 +192,39 @@ export const SchedulesScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  {/* Cancel/reopen only ever shown to the admin who created
-                      this schedule — an officer or another admin only gets
-                      the read-only view above. */}
-                  {manageable && item.status === 'OPEN' && (
-                    <TouchableOpacity
-                      onPress={() => handleCancel(item.id)}
-                      style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5 }}
-                    >
-                      <Ionicons name="close-circle-outline" size={14} color={COLORS.error} />
-                      <Text style={{ color: COLORS.error, fontSize: 12, fontWeight: '600' }}>Cancel slot</Text>
-                    </TouchableOpacity>
-                  )}
-                  {manageable && item.status === 'CANCELLED' && (
-                    <TouchableOpacity
-                      onPress={() => handleReopen(item.id)}
-                      style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5 }}
-                    >
-                      <Ionicons name="refresh-outline" size={14} color={COLORS.success} />
-                      <Text style={{ color: COLORS.success, fontSize: 12, fontWeight: '600' }}>Reopen slot</Text>
-                    </TouchableOpacity>
+                  {/* Actions only ever shown to the admin who created this
+                     schedule — an officer or another admin only gets the
+                     read-only view above. Expired schedules can no longer
+                     be cancelled or reopened (the backend rejects both),
+                     so Delete is the only action offered for those. */}
+                  {manageable && (
+                    <View style={{ flexDirection: 'row', gap: 18, marginTop: 10 }}>
+                      {!isExpired && item.status === 'OPEN' && (
+                        <TouchableOpacity
+                          onPress={() => handleCancel(item.id)}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                        >
+                          <Ionicons name="close-circle-outline" size={14} color={COLORS.error} />
+                          <Text style={{ color: COLORS.error, fontSize: 12, fontWeight: '600' }}>Cancel slot</Text>
+                        </TouchableOpacity>
+                      )}
+                      {!isExpired && item.status === 'CANCELLED' && (
+                        <TouchableOpacity
+                          onPress={() => handleReopen(item.id)}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                        >
+                          <Ionicons name="refresh-outline" size={14} color={COLORS.success} />
+                          <Text style={{ color: COLORS.success, fontSize: 12, fontWeight: '600' }}>Reopen slot</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        onPress={() => handleDelete(item.id)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={COLORS.textMuted} />
+                        <Text style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: '600' }}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               </TouchableOpacity>
@@ -172,7 +234,7 @@ export const SchedulesScreen: React.FC = () => {
       )}
 
       {/* FAB — create a new schedule (admin only) */}
-      {user?.role === 'ADMIN' && (
+      {isAdmin && (
         <TouchableOpacity
           onPress={() => navigation.navigate('ScheduleForm', {})}
           activeOpacity={0.85}
