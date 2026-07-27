@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StatusBar, TouchableOpacity, Alert, Modal, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { useQuery } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { Button } from '@components/common/Button';
@@ -78,10 +79,20 @@ export const RequestDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         </Card>
 
-        {/* QR Code for approved requests */}
+        {/* QR Code for approved requests — a REAL, scannable code encoding
+            request.qrCode, not the generic decorative icon this used to
+            show. The officer's ScanQRScreen (expo-camera CameraView) reads
+            exactly this value back via onBarcodeScanned. */}
         {isApproved && request.qrCode && (
           <Card variant="elevated" style={{ marginBottom: 16, alignItems: 'center' }}>
-            <Ionicons name="qr-code" size={180} color={COLORS.primary} />
+            <View style={{ padding: 16, backgroundColor: COLORS.white, borderRadius: 16 }}>
+              <QRCode
+                value={request.qrCode}
+                size={180}
+                color={COLORS.text}
+                backgroundColor={COLORS.white}
+              />
+            </View>
             <Text style={{ marginTop: 12, fontWeight: '700', fontSize: 16, color: COLORS.text }}>Your Entry QR Code</Text>
             <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
               Show this at the prison gate. Expires: {request.qrCodeExpiresAt ? formatDateTime(request.qrCodeExpiresAt) : '—'}
@@ -107,6 +118,9 @@ export const RequestDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {request.prisoner.firstName} {request.prisoner.lastName}
                 </Text>
                 <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>#{request.prisoner.prisonerNumber}</Text>
+                {request.prisoner.cellBlock && (
+                  <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>Cell: {request.prisoner.cellBlock}</Text>
+                )}
               </View>
             </View>
           </Card>
