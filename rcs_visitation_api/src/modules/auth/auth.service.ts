@@ -3,6 +3,28 @@ import { hashPassword, comparePassword } from '../../shared/utils/bcrypt';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../shared/utils/jwt';
 import { RegisterDto, LoginDto, ChangePasswordDto } from './auth.schema';
 
+/**
+ * BUG FIX: register() and login() each used their own hand-picked, much
+ * smaller `select` than getMe() — missing profilePhoto, status,
+ * nationalId, preferredLang, emailVerified, phoneVerified, and
+ * visitorProfile entirely. Since the mobile app persists whatever user
+ * object comes back from register/login as its working copy (and only
+ * refetches on an explicit profile update), a user's profile photo — or
+ * any of those other fields — appeared to vanish every time they logged
+ * out and back in, even though it was sitting in the database untouched
+ * the whole time. All three methods now return the exact same shape.
+ */
+const AUTH_USER_SELECT = {
+  id: true, email: true, phone: true, firstName: true, lastName: true,
+  role: true, status: true, nationalId: true, profilePhoto: true,
+  preferredLang: true, emailVerified: true, phoneVerified: true, createdAt: true,
+  visitorProfile: {
+    select: {
+      id: true, district: true, isBanned: true, totalVisitsCount: true, lastVisitAt: true,
+    },
+  },
+} as const;
+
 export class AuthService {
 
   async register(dto: RegisterDto) {
@@ -27,10 +49,7 @@ export class AuthService {
         // Auto-create VisitorProfile if role is VISITOR
         visitorProfile: dto.role === 'VISITOR' ? { create: {} } : undefined,
       },
-      select: {
-        id: true, email: true, phone: true, firstName: true,
-        lastName: true, role: true, createdAt: true,
-      },
+      select: AUTH_USER_SELECT,
     });
 
     const accessToken  = signAccessToken({ id: user.id, role: user.role, email: user.email });
@@ -61,16 +80,27 @@ export class AuthService {
     const accessToken  = signAccessToken({ id: user.id, role: user.role, email: user.email });
     const refreshToken = signRefreshToken(user.id);
 
+    // Re-fetch with the complete shape rather than hand-picking a handful
+    // of fields — see AUTH_USER_SELECT's comment for why this matters.
+    const fullUser = await prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: AUTH_USER_SELECT,
+    });
+
     return {
-      user: {
-        id: user.id, email: user.email, phone: user.phone,
-        firstName: user.firstName, lastName: user.lastName, role: user.role,
-      },
+      user: fullUser,
       accessToken,
       refreshToken,
     };
   }
 
+  /**
+   * Exchanges a valid refresh token for a new access token, plus a rotated
+   * refresh token. This is what lets the mobile app silently renew a
+   * short-lived access token without forcing the user to log in again —
+   * WITHOUT this route registered, every access-token expiry (or any 401)
+   * becomes an immediate, unrecoverable logout on the client.
+   */
   async refresh(refreshToken: string) {
     let payload: { userId: string };
     try {
@@ -102,16 +132,7 @@ export class AuthService {
   async getMe(userId: string) {
     return prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: {
-        id: true, email: true, phone: true, firstName: true, lastName: true,
-        role: true, status: true, nationalId: true, profilePhoto: true,
-        preferredLang: true, createdAt: true,
-        visitorProfile: {
-          select: {
-            id: true, district: true, isBanned: true, totalVisitsCount: true, lastVisitAt: true,
-          },
-        },
-      },
+      select: AUTH_USER_SELECT,
     });
   }
 }
