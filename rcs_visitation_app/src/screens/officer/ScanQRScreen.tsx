@@ -12,7 +12,7 @@ import { StatusBadge } from '@components/common/StatusBadge';
 import { COLORS } from '@constants';
 import { useTranslation } from '@hooks/useTranslation';
 import { verificationApi } from '@api/verification';
-import { formatDate, formatTime } from '@utils';
+import { formatDate, formatTime, extractApiError } from '@utils';
 
 type ScanState = 'scanning' | 'processing' | 'valid' | 'invalid';
 
@@ -59,7 +59,13 @@ export const ScanQRScreen: React.FC = () => {
         result.valid ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error
       );
     } catch (err: any) {
-      setScanResult({ valid: false, reason: 'Network error. Please try again.' });
+      // BUG FIX: this previously always showed a hardcoded "Network error.
+      // Please try again." no matter what actually went wrong — an
+      // expired session, a permissions error, a validation rejection, and
+      // a genuine dropped connection were all indistinguishable to the
+      // officer (and to anyone debugging this from a bug report). Now
+      // shows the real reason the request failed.
+      setScanResult({ valid: false, reason: extractApiError(err) });
       setScanState('invalid');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
@@ -84,7 +90,7 @@ export const ScanQRScreen: React.FC = () => {
   if (hasPermission === false) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-        <Ionicons name="camera-off" size={64} color={COLORS.error} />
+        <Ionicons name="videocam-off" size={64} color={COLORS.error} />
         <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>Camera Permission Required</Text>
         <Text style={{ color: COLORS.textMuted, textAlign: 'center', marginTop: 8 }}>
           Please enable camera access in your device settings to scan QR codes.
@@ -98,47 +104,57 @@ export const ScanQRScreen: React.FC = () => {
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       {scanState === 'scanning' && (
-        <CameraView
-          style={StyleSheet.absoluteFillObject}
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={handleBarCodeScanned}
-        >
-          {/* Overlay */}
-          <LinearGradient colors={['rgba(0,0,0,0.7)', 'transparent']} style={{ paddingTop: 52, paddingHorizontal: 20, paddingBottom: 30 }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="arrow-back" size={24} color={COLORS.white} />
-              <Text style={{ color: COLORS.white, fontSize: 16, fontWeight: '600' }}>Scan Visitor QR Code</Text>
-            </TouchableOpacity>
-          </LinearGradient>
+        <View style={{ flex: 1 }}>
+          {/* BUG FIX: CameraView in this expo-camera version does not
+             support children reliably (Expo logs this as an explicit
+             warning) — the overlay used to be rendered INSIDE <CameraView>,
+             which is exactly the "inconsistent behaviour" the warning was
+             about. Now the camera and the overlay are siblings, both
+             absolutely filling this wrapper, instead of parent/child. */}
+          <CameraView
+            style={StyleSheet.absoluteFillObject}
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={handleBarCodeScanned}
+          />
 
-          {/* Scanner frame */}
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Animated.View style={[{
-              width: 240, height: 240, position: 'relative',
-            }, { transform: [{ scale: pulseAnim }] }]}>
-              {/* Corner markers */}
-              {[{ top: 0, left: 0 }, { top: 0, right: 0 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }].map((pos, i) => (
-                <View key={i} style={[{
-                  position: 'absolute', width: 40, height: 40,
-                  borderColor: COLORS.accent, borderWidth: 3,
-                  ...(pos as any),
-                }, i === 0 ? { borderRightWidth: 0, borderBottomWidth: 0 }
-                   : i === 1 ? { borderLeftWidth: 0, borderBottomWidth: 0 }
-                   : i === 2 ? { borderRightWidth: 0, borderTopWidth: 0 }
-                   : { borderLeftWidth: 0, borderTopWidth: 0 }]} />
-              ))}
-            </Animated.View>
-            <Text style={{ color: COLORS.white, marginTop: 24, fontSize: 14, textAlign: 'center', opacity: 0.8 }}>
-              Point camera at visitor's QR code
-            </Text>
+          <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+            {/* Overlay */}
+            <LinearGradient colors={['rgba(0,0,0,0.7)', 'transparent']} style={{ paddingTop: 52, paddingHorizontal: 20, paddingBottom: 30 }}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+                <Text style={{ color: COLORS.white, fontSize: 16, fontWeight: '600' }}>Scan Visitor QR Code</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+
+            {/* Scanner frame */}
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
+              <Animated.View style={[{
+                width: 240, height: 240, position: 'relative',
+              }, { transform: [{ scale: pulseAnim }] }]}>
+                {/* Corner markers */}
+                {[{ top: 0, left: 0 }, { top: 0, right: 0 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }].map((pos, i) => (
+                  <View key={i} style={[{
+                    position: 'absolute', width: 40, height: 40,
+                    borderColor: COLORS.accent, borderWidth: 3,
+                    ...(pos as any),
+                  }, i === 0 ? { borderRightWidth: 0, borderBottomWidth: 0 }
+                     : i === 1 ? { borderLeftWidth: 0, borderBottomWidth: 0 }
+                     : i === 2 ? { borderRightWidth: 0, borderTopWidth: 0 }
+                     : { borderLeftWidth: 0, borderTopWidth: 0 }]} />
+                ))}
+              </Animated.View>
+              <Text style={{ color: COLORS.white, marginTop: 24, fontSize: 14, textAlign: 'center', opacity: 0.8 }}>
+                Point camera at visitor's QR code
+              </Text>
+            </View>
+
+            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={{ paddingBottom: 40, paddingHorizontal: 20, alignItems: 'center' }}>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center' }}>
+                The QR code is displayed in the visitor's app after approval
+              </Text>
+            </LinearGradient>
           </View>
-
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={{ paddingBottom: 40, paddingHorizontal: 20, alignItems: 'center' }}>
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center' }}>
-              The QR code is displayed in the visitor's app after approval
-            </Text>
-          </LinearGradient>
-        </CameraView>
+        </View>
       )}
 
       {scanState === 'processing' && (
