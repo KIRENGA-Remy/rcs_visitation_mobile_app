@@ -6,6 +6,28 @@ import { notificationService } from '../notifications/notification.service';
 
 export class VisitRequestService {
 
+  /**
+   * Same lazy-check pattern used for schedule expiry and overdue
+   * checkouts — no cron scheduler exists in this backend, so this runs
+   * whenever visit requests are actually listed. An APPROVED request
+   * whose scheduled slot has ended without the visitor ever being checked
+   * in matches the schema's own definition of EXPIRED exactly ("approved
+   * but slot passed without check-in") — so that's the real status this
+   * transitions to. Officer-facing screens label this "No Show" instead
+   * of "Expired" for that specific audience (see PendingRequestsScreen.tsx
+   * on mobile), but it's the same underlying status either way — there's
+   * no need for two different state transitions to represent one event.
+   */
+  private async expireUncheckedApprovals() {
+    await prisma.visitRequest.updateMany({
+      where: {
+        status: 'APPROVED',
+        schedule: { endTime: { lt: new Date() } },
+      },
+      data: { status: 'EXPIRED' },
+    });
+  }
+
   async create(dto: CreateVisitRequestDto, visitorUserId: string) {
     // Get visitor profile
     const visitorProfile = await prisma.visitorProfile.findUnique({
@@ -27,7 +49,7 @@ export class VisitRequestService {
     if (schedule.prisonId !== prisoner.prisonId) throw new Error('Schedule does not belong to the prisoner\'s prison');
     if (schedule.status !== 'OPEN') throw new Error('This time slot is not available for booking');
     if (schedule.currentBookings >= schedule.maxCapacity) throw new Error('This time slot is fully booked');
-    if (new Date(schedule.startTime) < new Date()) throw new Error('Cannot book a past time slot');
+    if (new Date(schedule.endTime) < new Date()) throw new Error('Cannot book a past time slot');
 
     // Check for duplicate booking
     const existing = await prisma.visitRequest.findFirst({
@@ -169,6 +191,7 @@ export class VisitRequestService {
   }
 
   async findByVisitor(visitorUserId: string, query: { page?: unknown; limit?: unknown; status?: string }) {
+    await this.expireUncheckedApprovals();
     const { page, limit, skip } = parsePagination(query);
     const visitorProfile = await prisma.visitorProfile.findUnique({ where: { userId: visitorUserId } });
     if (!visitorProfile) return { requests: [], pagination: buildPagination(page, limit, 0) };
@@ -191,6 +214,7 @@ export class VisitRequestService {
   }
 
   async findByPrison(prisonId: string, query: { page?: unknown; limit?: unknown; status?: string; date?: string }) {
+    await this.expireUncheckedApprovals();
     const { page, limit, skip } = parsePagination(query);
     const where: any = { schedule: { prisonId } };
     if (query.status) where.status = query.status;
@@ -288,6 +312,7 @@ export class VisitRequestService {
   }
 
   async allPrisonRequests(query: { status?: string; page?: unknown; limit?: unknown }, requestorId: string, requestorRole: string) {
+    await this.expireUncheckedApprovals();
     if (requestorRole === 'PRISON_OFFICER') await this.notifyOverdueCheckouts();
     const { page, limit, skip } = parsePagination(query);
     const where: any = {};
