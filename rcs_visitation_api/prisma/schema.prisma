@@ -101,6 +101,7 @@ enum NotificationType {
   SCHEDULE_CHANGED    // a visit schedule's time/capacity was edited or cancelled
   REPORT_REQUESTED    // admin requested a report from an officer (or all officers)
   REPORT_SUBMITTED    // an officer submitted a report, possibly fulfilling a request
+  VISIT_OVERDUE       // a checked-in visit has run past its scheduled end time
   SYSTEM_ALERT
 }
 
@@ -467,6 +468,11 @@ model VisitLog {
   amendmentReason     String?
   amendedAt           DateTime?
   amendedByUserId     String?
+
+  // Set the first time an overdue-checkout notification fires for this
+  // visit, so the lazy check that runs on every dashboard load doesn't
+  // re-notify on every single fetch.
+  overdueNotifiedAt   DateTime?
 
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
