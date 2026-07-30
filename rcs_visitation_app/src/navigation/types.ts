@@ -33,7 +33,7 @@ export type VisitorStackParamList = {
 
 export type OfficerTabParamList = {
   Dashboard:     undefined;
-  PendingRequests: { initialTab?: 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED' } | undefined;
+  PendingRequests: { initialTab?: 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED' | 'EXPIRED' } | undefined;
   Notifications: undefined;
   Profile:       undefined;
 };

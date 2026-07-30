@@ -11,15 +11,20 @@ import { EmptyState } from '@components/common/EmptyState';
 import { ScreenHeader } from '@components/common/ScreenHeader';
 import { COLORS } from '@constants';
 import { visitRequestsApi } from '@api/visitRequests';
-import type { OfficerStackParamList } from '@navigation/types';
+import type { OfficerTabParamList } from '@navigation/types';
 
-type StatusTab = 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED';
+type StatusTab = 'PENDING' | 'APPROVED' | 'CHECKED_IN' | 'COMPLETED' | 'EXPIRED';
 
 const STATUS_TABS: { label: string; value: StatusTab }[] = [
   { label: 'Today',     value: 'CHECKED_IN' },
   { label: 'Pending',   value: 'PENDING' },
   { label: 'Approved',  value: 'APPROVED' },
   { label: 'Completed', value: 'COMPLETED' },
+  // Same underlying status as the visitor sees labeled "Expired" — this is
+  // just the officer-facing term for the exact same event (approved, slot
+  // ended, visitor never checked in). No separate state, just a different
+  // label for a different audience.
+  { label: 'No Show',   value: 'EXPIRED' },
 ];
 
 export const PendingRequestsScreen: React.FC = () => {
@@ -28,7 +33,7 @@ export const PendingRequestsScreen: React.FC = () => {
   // action, which needs to land directly on the CHECKED_IN tab rather than
   // jumping straight into CheckOutScreen with no visitRequestId selected —
   // see OfficerDashboardScreen.tsx for the crash this was causing).
-  const route = useRoute<RouteProp<OfficerStackParamList, 'PendingRequests'>>();
+  const route = useRoute<RouteProp<OfficerTabParamList, 'PendingRequests'>>();
   const [activeTab, setActiveTab] = useState<StatusTab>(route.params?.initialTab ?? 'PENDING');
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
