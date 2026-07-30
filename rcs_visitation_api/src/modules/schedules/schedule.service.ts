@@ -70,12 +70,22 @@ export class ScheduleService {
    * outside "OPEN and in the future", even though it exists and is
    * perfectly valid to view/edit/cancel.
    */
-  async findAllForAdmin(query: { prisonId?: string; status?: string; page?: unknown; limit?: unknown }) {
+  async findAllForAdmin(query: { prisonId?: string; status?: string; page?: unknown; limit?: unknown }, requestorId?: string, requestorRole?: string) {
     await this.expirePastSchedules();
     const { page, limit, skip } = parsePagination(query);
     const where: any = {};
     if (query.prisonId) where.prisonId = query.prisonId;
     if (query.status)   where.status   = query.status;
+
+    // Same scoping as visit-requests/visit-logs — an officer should only
+    // ever see schedules for the prison they're actually assigned to, not
+    // every open slot across every facility in the system.
+    if (requestorRole === 'PRISON_OFFICER' && requestorId) {
+      const officer = await prisma.user.findUnique({ where: { id: requestorId }, select: { assignedPrisonId: true } });
+      if (officer?.assignedPrisonId) {
+        where.prisonId = officer.assignedPrisonId;
+      }
+    }
 
     const [schedules, total] = await Promise.all([
       prisma.visitSchedule.findMany({
@@ -254,8 +264,13 @@ export class ScheduleService {
       const next = new Date(d); next.setDate(next.getDate() + 1);
       where.startTime = { gte: d, lt: next };
     } else {
-      // Default: show future schedules only
-      where.startTime = { gte: new Date() };
+      // BUG FIX: this used to require startTime >= now, which excludes a
+      // slot that has already STARTED but hasn't ENDED yet — e.g. a same-day
+      // "10:47 AM–1:47 PM" slot is still legitimately bookable at 11:08 AM,
+      // but this filter said otherwise. "Still available" means it hasn't
+      // ended, not that it hasn't started — the exact same definition
+      // expirePastSchedules() already uses for what counts as expired.
+      where.endTime = { gte: new Date() };
     }
 
     const [schedules, total] = await Promise.all([

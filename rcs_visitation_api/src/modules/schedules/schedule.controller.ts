@@ -26,7 +26,7 @@ export class ScheduleController {
   }
   async findAllForAdmin(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const { schedules, pagination } = await scheduleService.findAllForAdmin(req.query as any);
+      const { schedules, pagination } = await scheduleService.findAllForAdmin(req.query as any, req.user!.id, req.user!.role);
       sendSuccess(res, schedules, 'Schedules retrieved', 200, pagination);
     } catch (err) { next(err); }
   }
