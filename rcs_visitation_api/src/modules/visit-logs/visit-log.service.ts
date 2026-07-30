@@ -170,6 +170,52 @@ export class VisitLogService {
     ]);
     return { logs, pagination: buildPagination(page, limit, total) };
   }
+
+  /**
+   * VisitLog only ever gets a row on an actual check-in — a no-show
+   * (EXPIRED request, approved but never checked in) has no VisitLog row
+   * at all, so the plain findAll() above can never show it no matter how
+   * it's displayed. This groups by the actual VisitSchedule instead and
+   * pulls every request that reached APPROVED-or-beyond for that slot —
+   * COMPLETED and CHECKED_IN ones carry their real VisitLog details;
+   * EXPIRED/NO_SHOW ones carry only the request-level info, since that's
+   * all that ever existed for them.
+   */
+  async getGroupedHistory(requestorId: string, requestorRole: string, query: { page?: unknown; limit?: unknown }) {
+    const { page, limit, skip } = parsePagination(query);
+    const scheduleWhere: any = {};
+
+    if (requestorRole === 'PRISON_OFFICER') {
+      const officer = await prisma.user.findUnique({ where: { id: requestorId }, select: { assignedPrisonId: true } });
+      if (officer?.assignedPrisonId) scheduleWhere.prisonId = officer.assignedPrisonId;
+    }
+
+    // Only schedules that actually have at least one request past PENDING
+    // are worth showing here — an empty or all-still-pending slot has no
+    // history to display yet.
+    scheduleWhere.visitRequests = { some: { status: { in: ['APPROVED', 'CHECKED_IN', 'COMPLETED', 'EXPIRED', 'NO_SHOW'] } } };
+
+    const [schedules, total] = await Promise.all([
+      prisma.visitSchedule.findMany({
+        where: scheduleWhere, skip, take: limit,
+        include: {
+          prison: { select: { name: true, code: true } },
+          visitRequests: {
+            where: { status: { in: ['APPROVED', 'CHECKED_IN', 'COMPLETED', 'EXPIRED', 'NO_SHOW'] } },
+            include: {
+              visitorProfile: { include: { user: { select: { firstName: true, lastName: true, phone: true } } } },
+              prisoner: { select: { firstName: true, lastName: true, prisonerNumber: true } },
+              visitLog: { include: { conductedBy: { select: { firstName: true, lastName: true } } } },
+            },
+          },
+        },
+        orderBy: { startTime: 'desc' },
+      }),
+      prisma.visitSchedule.count({ where: scheduleWhere }),
+    ]);
+
+    return { schedules, pagination: buildPagination(page, limit, total) };
+  }
 }
 
 export const visitLogService = new VisitLogService();

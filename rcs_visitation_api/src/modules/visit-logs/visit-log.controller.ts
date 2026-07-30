@@ -4,6 +4,12 @@ import { sendSuccess, sendError } from '../../shared/utils/apiResponse';
 import { AuthRequest } from '../../shared/types';
 
 export class VisitLogController {
+  async getGroupedHistory(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { schedules, pagination } = await visitLogService.getGroupedHistory(req.user!.id, req.user!.role, req.query as any);
+      sendSuccess(res, schedules, 'Visit history retrieved', 200, pagination);
+    } catch (err) { next(err); }
+  }
   async checkIn(req: AuthRequest, res: Response, next: NextFunction) {
     try { sendSuccess(res, await visitLogService.checkIn(req.body, req.user!.id), 'Visitor checked in', 201); }
     catch (err: any) {
