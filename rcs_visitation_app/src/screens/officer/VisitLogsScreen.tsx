@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, FlatList, StatusBar, RefreshControl, TouchableOpacity, Modal, ScrollView
+  View, Text, SectionList, StatusBar, RefreshControl, TouchableOpacity, Modal, ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -8,7 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { LoadingScreen } from '@components/common/LoadingScreen';
 import { EmptyState } from '@components/common/EmptyState';
 import { ScreenHeader } from '@components/common/ScreenHeader';
-import { COLORS, QUERY_KEYS, INCIDENT_LABELS } from '@constants';
+import { COLORS, INCIDENT_LABELS } from '@constants';
 import { visitLogsApi } from '@api/visitLogs';
 import { formatDate, formatDateTime, formatTime, formatDuration } from '@utils';
 
@@ -18,160 +18,162 @@ const QUALITY_META: Record<string, { label: string; color: string; icon: string 
   EMOTIONAL: { label: 'Emotional', color: COLORS.info,    icon: 'heart-outline' },
 };
 
+const OUTCOME_META: Record<string, { label: string; color: string; icon: string }> = {
+  COMPLETED:  { label: 'Completed',    color: COLORS.success, icon: 'checkmark-circle' },
+  CHECKED_IN: { label: 'Ongoing',      color: COLORS.info,    icon: 'timer' },
+  EXPIRED:    { label: 'No Show',      color: COLORS.textMuted, icon: 'close-circle-outline' },
+  NO_SHOW:    { label: 'No Show',      color: COLORS.textMuted, icon: 'close-circle-outline' },
+  APPROVED:   { label: 'Awaiting Visit', color: COLORS.warning, icon: 'time-outline' },
+};
+
+/**
+ * Grouped by the actual visit schedule — every visitor's outcome for that
+ * slot (who checked in, who completed, who never showed up at all) sits
+ * together under it, which is the whole point: a schedule's real history,
+ * not just a flat list of completed check-ins. A no-show never has a
+ * VisitLog row at all (that only gets created on actual check-in), so
+ * this reads from /visit-logs/by-schedule — a dedicated endpoint that
+ * pulls every APPROVED-or-beyond request per schedule, not just ones with
+ * logs — rather than the old /visit-logs list, which structurally could
+ * never show a no-show no matter how it was displayed.
+ */
 export const VisitLogsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [flaggedOnly, setFlaggedOnly] = useState(false);
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedVisit, setSelectedVisit] = useState<any>(null);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: [...QUERY_KEYS.VISIT_LOGS, { flaggedOnly }],
-    queryFn:  () => visitLogsApi.list({ flagged: flaggedOnly || undefined, limit: 50 }),
+    queryKey: ['visit-logs', 'by-schedule'],
+    queryFn:  () => visitLogsApi.getGroupedHistory({ limit: 50 }),
     staleTime: 30 * 1000,
   });
 
-  const logs = data?.data ?? [];
-  const flaggedCount = useMemo(() => logs.filter((l: any) => l.incidentFlagged).length, [logs]);
-  const avgDuration = useMemo(() => {
-    const withDuration = logs.filter((l: any) => l.durationMinutes);
-    if (!withDuration.length) return 0;
-    return Math.round(withDuration.reduce((sum: number, l: any) => sum + l.durationMinutes, 0) / withDuration.length);
-  }, [logs]);
+  const schedules = data?.data ?? [];
+
+  const { sections, totalVisits, completedCount, noShowCount } = useMemo(() => {
+    let total = 0, completed = 0, noShow = 0;
+    const secs = schedules.map((sch: any) => {
+      const visits = (sch.visitRequests ?? []).map((r: any) => {
+        total++;
+        if (r.status === 'COMPLETED') completed++;
+        if (r.status === 'EXPIRED' || r.status === 'NO_SHOW') noShow++;
+        return r;
+      });
+      return {
+        title: `${sch.label ?? 'Visit Slot'} · ${formatDate(sch.startTime)}`,
+        subtitle: `${sch.prison?.name ?? '—'} · ${formatTime(sch.startTime)}–${formatTime(sch.endTime)}`,
+        data: visits,
+      };
+    }).filter((s: any) => s.data.length > 0);
+    return { sections: secs, totalVisits: total, completedCount: completed, noShowCount: noShow };
+  }, [schedules]);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.surface }}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
       <ScreenHeader
         title="Visit Logs"
-        subtitle="Check-in and check-out records"
+        subtitle="Every visit, grouped by schedule"
         onBack={() => navigation.goBack()}
-        rightElement={
-          <TouchableOpacity
-            onPress={() => setFlaggedOnly(!flaggedOnly)}
-            style={{
-              backgroundColor: flaggedOnly ? COLORS.error : 'rgba(255,255,255,0.2)',
-              borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
-              flexDirection: 'row', alignItems: 'center', gap: 4,
-            }}
-          >
-            <Ionicons name="flag" size={14} color={COLORS.white} />
-            <Text style={{ color: COLORS.white, fontSize: 12, fontWeight: '600' }}>
-              {flaggedOnly ? 'All' : 'Flagged'}
-            </Text>
-          </TouchableOpacity>
-        }
       />
 
       {isLoading ? <LoadingScreen /> : (
-        <FlatList
-          data={logs}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 80, flexGrow: 1 }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} />}
+          stickySectionHeadersEnabled={false}
           ListHeaderComponent={
-            logs.length === 0 ? null : (
+            totalVisits === 0 ? null : (
               <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
                 <View style={{ flex: 1, backgroundColor: COLORS.white, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.border }}>
-                  <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.text }}>{logs.length}</Text>
-                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Total Records</Text>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.text }}>{totalVisits}</Text>
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Total Visits</Text>
                 </View>
                 <View style={{ flex: 1, backgroundColor: COLORS.white, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.border }}>
-                  <Text style={{ fontSize: 22, fontWeight: '800', color: flaggedCount > 0 ? COLORS.error : COLORS.text }}>{flaggedCount}</Text>
-                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Flagged</Text>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.success }}>{completedCount}</Text>
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Completed</Text>
                 </View>
                 <View style={{ flex: 1, backgroundColor: COLORS.white, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.border }}>
-                  <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.text }}>{avgDuration ? formatDuration(avgDuration) : '—'}</Text>
-                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Avg Duration</Text>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: noShowCount > 0 ? COLORS.error : COLORS.text }}>{noShowCount}</Text>
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>No Shows</Text>
                 </View>
               </View>
             )
           }
           ListEmptyComponent={
-            <EmptyState
-              icon="document-text-outline"
-              title="No visit logs"
-              description={flaggedOnly ? 'No flagged incidents found' : 'No completed visits yet'}
-            />
+            <EmptyState icon="document-text-outline" title="No visit history yet" description="Check-ins, completions, and no-shows will appear here, grouped by schedule." />
           }
+          renderSectionHeader={({ section }) => (
+            <View style={{ marginTop: 18, marginBottom: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: COLORS.text }}>{section.title}</Text>
+              <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 1 }}>{section.subtitle}</Text>
+            </View>
+          )}
           renderItem={({ item }) => {
-            const visitor = (item as any).visitRequest?.visitorProfile?.user;
-            const prisoner = (item as any).visitRequest?.prisoner;
-            const prison = (item as any).visitRequest?.schedule?.prison;
-            const quality = QUALITY_META[(item as any).visitQuality] ?? null;
-            const dateObj = new Date(item.actualCheckinTime);
+            const visitor = item.visitorProfile?.user;
+            const prisoner = item.prisoner;
+            const log = item.visitLog;
+            const outcome = OUTCOME_META[item.status] ?? { label: item.status, color: COLORS.textMuted, icon: 'help-circle-outline' };
+            const flagged = log?.incidentFlagged;
 
             return (
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => setSelectedLog(item)}
+                onPress={() => setSelectedVisit(item)}
                 style={{
                   backgroundColor: COLORS.white, borderRadius: 16, padding: 14,
                   marginBottom: 10, flexDirection: 'row', gap: 12,
-                  borderWidth: 1, borderColor: COLORS.border,
+                  borderWidth: flagged ? 1.5 : 1, borderColor: flagged ? COLORS.error : COLORS.border,
                 }}
               >
                 <View style={{
-                  width: 52, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: item.incidentFlagged ? `${COLORS.error}0D` : `${COLORS.primary}0D`,
-                  borderRadius: 12, paddingVertical: 10,
+                  width: 46, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: `${outcome.color}12`, borderRadius: 12, paddingVertical: 10,
                 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: item.incidentFlagged ? COLORS.error : COLORS.primary, letterSpacing: 0.5 }}>
-                    {dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                  </Text>
-                  <Text style={{ fontSize: 22, fontWeight: '800', color: item.incidentFlagged ? COLORS.error : COLORS.primary, marginTop: 1 }}>
-                    {dateObj.getDate()}
-                  </Text>
+                  <Ionicons name={outcome.icon as any} size={22} color={outcome.color} />
                 </View>
 
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }} numberOfLines={1}>
-                        {visitor?.firstName} {visitor?.lastName}
+                        {visitor?.firstName ?? '—'} {visitor?.lastName ?? ''}
                       </Text>
                       <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 1 }} numberOfLines={1}>
-                        Visited {prisoner?.firstName} {prisoner?.lastName} · {prison?.name ?? '—'}
+                        Visiting {prisoner?.firstName} {prisoner?.lastName}
                       </Text>
                     </View>
-                    {item.incidentFlagged && (
-                      <View style={{ backgroundColor: '#FEE2E2', borderRadius: 8, padding: 6 }}>
-                        <Ionicons name="flag" size={14} color={COLORS.error} />
-                      </View>
-                    )}
+                    <View style={{ backgroundColor: `${outcome.color}15`, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: outcome.color }}>{outcome.label}</Text>
+                    </View>
                   </View>
 
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Ionicons name="enter-outline" size={13} color={COLORS.textMuted} />
-                      <Text style={{ fontSize: 12, color: COLORS.textMuted }}>{formatTime(item.actualCheckinTime)}</Text>
+                      <Ionicons name="people-outline" size={13} color={COLORS.textMuted} />
+                      <Text style={{ fontSize: 12, color: COLORS.textMuted }}>
+                        {log ? `${log.actualAdultsPresent} adult(s), ${log.actualChildrenPresent} child(ren)` : `${item.numberOfAdults} adult(s) requested`}
+                      </Text>
                     </View>
-                    {item.durationMinutes ? (
+                    {log?.actualCheckinTime && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="timer-outline" size={13} color={COLORS.textMuted} />
-                        <Text style={{ fontSize: 12, color: COLORS.textMuted }}>{formatDuration(item.durationMinutes)}</Text>
-                      </View>
-                    ) : (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="ellipse" size={7} color={COLORS.warning} />
-                        <Text style={{ fontSize: 12, color: COLORS.warning, fontWeight: '600' }}>Still checked in</Text>
+                        <Ionicons name="enter-outline" size={13} color={COLORS.textMuted} />
+                        <Text style={{ fontSize: 12, color: COLORS.textMuted }}>{formatTime(log.actualCheckinTime)}</Text>
                       </View>
                     )}
-                    {quality && (
+                    {log?.durationMinutes && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name={quality.icon as any} size={13} color={quality.color} />
-                        <Text style={{ fontSize: 12, color: quality.color, fontWeight: '600' }}>{quality.label}</Text>
+                        <Ionicons name="timer-outline" size={13} color={COLORS.textMuted} />
+                        <Text style={{ fontSize: 12, color: COLORS.textMuted }}>{formatDuration(log.durationMinutes)}</Text>
                       </View>
                     )}
                   </View>
 
-                  {item.incidentType !== 'NONE' && (
-                    <View style={{
-                      flexDirection: 'row', alignItems: 'center', gap: 6,
-                      marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border,
-                    }}>
+                  {flagged && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border }}>
                       <Ionicons name="warning-outline" size={13} color={COLORS.error} />
-                      <Text style={{ fontSize: 12, color: COLORS.error, fontWeight: '600' }}>
-                        {INCIDENT_LABELS[item.incidentType]}
-                      </Text>
+                      <Text style={{ fontSize: 12, color: COLORS.error, fontWeight: '600' }}>{INCIDENT_LABELS[log.incidentType]}</Text>
                     </View>
                   )}
                 </View>
@@ -181,55 +183,67 @@ export const VisitLogsScreen: React.FC = () => {
         />
       )}
 
-      {/* Full detail — tapping a log card used to do nothing at all */}
-      <Modal visible={!!selectedLog} transparent animationType="slide" onRequestClose={() => setSelectedLog(null)}>
+      {/* Full detail */}
+      <Modal visible={!!selectedVisit} transparent animationType="slide" onRequestClose={() => setSelectedVisit(null)}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.overlay }}>
           <View style={{ backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12 }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: COLORS.text }}>Visit Record</Text>
-              <TouchableOpacity onPress={() => setSelectedLog(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: COLORS.text }}>Visit Detail</Text>
+              <TouchableOpacity onPress={() => setSelectedVisit(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={24} color={COLORS.textMuted} />
               </TouchableOpacity>
             </View>
-            {selectedLog && (
-              <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 0 }}>
-                <DetailRow icon="person-outline" label="Visitor"
-                  value={`${selectedLog.visitRequest?.visitorProfile?.user?.firstName ?? ''} ${selectedLog.visitRequest?.visitorProfile?.user?.lastName ?? ''}`} />
-                <DetailRow icon="body-outline" label="Prisoner"
-                  value={`${selectedLog.visitRequest?.prisoner?.firstName ?? ''} ${selectedLog.visitRequest?.prisoner?.lastName ?? ''} (#${selectedLog.visitRequest?.prisoner?.prisonerNumber ?? '—'})`} />
-                <DetailRow icon="business-outline" label="Prison" value={selectedLog.visitRequest?.schedule?.prison?.name ?? '—'} />
-                <DetailRow icon="log-in-outline" label="Checked In" value={formatDateTime(selectedLog.actualCheckinTime)} />
-                <DetailRow icon="log-out-outline" label="Checked Out"
-                  value={selectedLog.actualCheckoutTime ? formatDateTime(selectedLog.actualCheckoutTime) : 'Still checked in'} />
-                {selectedLog.durationMinutes && (
-                  <DetailRow icon="timer-outline" label="Duration" value={formatDuration(selectedLog.durationMinutes)} />
-                )}
-                <DetailRow icon="people-outline" label="Present"
-                  value={`${selectedLog.actualAdultsPresent} adult(s), ${selectedLog.actualChildrenPresent} child(ren)`} />
-                {selectedLog.visitQuality && (
-                  <DetailRow icon="happy-outline" label="Visit Quality" value={QUALITY_META[selectedLog.visitQuality]?.label ?? selectedLog.visitQuality} />
-                )}
-                <DetailRow icon="person-circle-outline" label="Conducted By"
-                  value={`${selectedLog.conductedBy?.firstName ?? ''} ${selectedLog.conductedBy?.lastName ?? ''}`} />
-
-                {selectedLog.incidentType !== 'NONE' && (
-                  <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, padding: 14, marginTop: 8, marginBottom: 8 }}>
-                    <Text style={{ color: COLORS.error, fontWeight: '700', fontSize: 13, marginBottom: 4 }}>
-                      Incident: {INCIDENT_LABELS[selectedLog.incidentType]}
-                    </Text>
-                    {selectedLog.incidentNotes && (
-                      <Text style={{ color: '#991B1B', fontSize: 13 }}>{selectedLog.incidentNotes}</Text>
-                    )}
+            {selectedVisit && (() => {
+              const v = selectedVisit;
+              const log = v.visitLog;
+              const outcome = OUTCOME_META[v.status] ?? { label: v.status, color: COLORS.textMuted, icon: 'help-circle-outline' };
+              return (
+                <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 0 }}>
+                  <View style={{
+                    alignSelf: 'flex-start', backgroundColor: `${outcome.color}15`, borderRadius: 8,
+                    paddingHorizontal: 10, paddingVertical: 4, marginBottom: 14,
+                  }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: outcome.color }}>{outcome.label}</Text>
                   </View>
-                )}
-                {selectedLog.itemsConfiscated && (
-                  <DetailRow icon="alert-circle-outline" label="Confiscated" value={selectedLog.itemsConfiscated} />
-                )}
-                {selectedLog.officerNotes && (
-                  <DetailRow icon="document-text-outline" label="Officer Notes" value={selectedLog.officerNotes} />
-                )}
-              </ScrollView>
-            )}
+
+                  <DetailRow icon="person-outline" label="Visitor"
+                    value={`${v.visitorProfile?.user?.firstName ?? ''} ${v.visitorProfile?.user?.lastName ?? ''}`} />
+                  <DetailRow icon="call-outline" label="Phone" value={v.visitorProfile?.user?.phone ?? '—'} />
+                  <DetailRow icon="body-outline" label="Prisoner"
+                    value={`${v.prisoner?.firstName ?? ''} ${v.prisoner?.lastName ?? ''} (#${v.prisoner?.prisonerNumber ?? '—'})`} />
+                  <DetailRow icon="people-outline" label="Requested" value={`${v.numberOfAdults} adult(s), ${v.numberOfChildren} child(ren)`} />
+
+                  {log ? (
+                    <>
+                      <DetailRow icon="log-in-outline" label="Checked In" value={formatDateTime(log.actualCheckinTime)} />
+                      <DetailRow icon="log-out-outline" label="Checked Out"
+                        value={log.actualCheckoutTime ? formatDateTime(log.actualCheckoutTime) : 'Still checked in'} />
+                      {log.durationMinutes && <DetailRow icon="timer-outline" label="Duration" value={formatDuration(log.durationMinutes)} />}
+                      <DetailRow icon="people-outline" label="Actually Present" value={`${log.actualAdultsPresent} adult(s), ${log.actualChildrenPresent} child(ren)`} />
+                      {log.visitQuality && <DetailRow icon="happy-outline" label="Visit Quality" value={QUALITY_META[log.visitQuality]?.label ?? log.visitQuality} />}
+                      <DetailRow icon="person-circle-outline" label="Checked In By"
+                        value={`${log.conductedBy?.firstName ?? ''} ${log.conductedBy?.lastName ?? ''}`} />
+                      {log.incidentType !== 'NONE' && (
+                        <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, padding: 14, marginTop: 8, marginBottom: 8 }}>
+                          <Text style={{ color: COLORS.error, fontWeight: '700', fontSize: 13, marginBottom: 4 }}>
+                            Incident: {INCIDENT_LABELS[log.incidentType]}
+                          </Text>
+                          {log.incidentNotes && <Text style={{ color: '#991B1B', fontSize: 13 }}>{log.incidentNotes}</Text>}
+                        </View>
+                      )}
+                      {log.itemsConfiscated && <DetailRow icon="alert-circle-outline" label="Confiscated" value={log.itemsConfiscated} />}
+                      {log.officerNotes && <DetailRow icon="document-text-outline" label="Officer Notes" value={log.officerNotes} />}
+                    </>
+                  ) : (
+                    <View style={{ backgroundColor: COLORS.surface, borderRadius: 12, padding: 14, marginTop: 8 }}>
+                      <Text style={{ color: COLORS.textMuted, fontSize: 13, textAlign: 'center' }}>
+                        This visitor was approved but never checked in — the scheduled visit ended without them arriving. No check-in details exist for this visit.
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+              );
+            })()}
           </View>
         </View>
       </Modal>

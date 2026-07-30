@@ -21,4 +21,9 @@ export const visitLogsApi = {
     const res = await client.get<ApiResponse<VisitLog>>(`/visit-logs/${id}`);
     return res.data.data!;
   },
+
+  getGroupedHistory: async (params?: { page?: number; limit?: number }) => {
+    const res = await client.get<ApiResponse<any[]>>('/visit-logs/by-schedule', { params });
+    return { data: res.data.data!, pagination: res.data.pagination };
+  },
 };
