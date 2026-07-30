@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { VisitRequestCard } from '@components/common/VisitRequestCard';
+import { OngoingVisitCard } from '@components/common/OngoingVisitCard';
 import { VisitRequestSkeleton, StatCardSkeleton } from '@components/common/Skeleton';
 import { EmptyState } from '@components/common/EmptyState';
 import { Avatar } from '@components/common/Avatar';
@@ -53,9 +54,21 @@ export const OfficerDashboardScreen: React.FC = () => {
     staleTime: 30 * 1000,
   });
 
-  const refresh = useCallback(() => { refetchStats(); refetchReqs(); }, []);
+  // Surfaced directly on the dashboard rather than buried behind the
+  // "Check Out" quick action — an officer needs to actually SEE who's
+  // currently checked in to know there's something to act on at all.
+  const { data: checkedInData, isLoading: checkedInLoading, refetch: refetchCheckedIn } = useQuery({
+    queryKey: ['visit-requests', 'prison-checked-in'],
+    queryFn:  () => visitRequestsApi.byPrison('', { status: 'CHECKED_IN', limit: 5 }),
+    staleTime: 30 * 1000,
+  });
+
+  const refresh = useCallback(() => { refetchStats(); refetchReqs(); refetchCheckedIn(); }, []);
 
   const statCards = useMemo(() => [
+    // Most urgent/actionable first — a visit still checked in past its
+    // scheduled end time needs the officer to act; nothing auto-completes
+    // it (see VisitRequestCard.tsx for why that's deliberate).
     { label: 'Overdue Check-outs',   value: overview?.overdueCheckouts ?? 0,          icon: 'alert-circle',  color: COLORS.error   },
     { label: t('today_checkins'),    value: overview?.todayCheckins ?? 0,             icon: 'enter',         color: COLORS.primary },
     { label: t('pending_requests'),  value: overview?.visitRequests?.pending ?? 0,    icon: 'time',          color: COLORS.warning },
@@ -65,6 +78,15 @@ export const OfficerDashboardScreen: React.FC = () => {
 
   const quickActions = useMemo(() => [
     { label: t('scan_qr'),     icon: 'qr-code',       screen: 'ScanQR',          color: COLORS.primary },
+    // "Pending" tile removed — the Pending Requests section further down
+    // this same screen already links to the exact same PendingRequests
+    // screen via its "See All" button, making the tile a pure duplicate.
+    // IMPORTANT: this cannot navigate straight to 'CheckOut' — that screen
+    // requires a specific visitRequestId (route.params.visitRequestId) to
+    // know WHICH visit to end, which we don't have yet at this point. Doing
+    // so crashed with "Cannot read property 'visitRequestId' of undefined".
+    // Routing to PendingRequests' CHECKED_IN tab lets the officer pick who
+    // to check out first, same as tapping a checked-in card there directly.
     { label: t('check_out'),   icon: 'exit',           screen: 'PendingRequests', params: { initialTab: 'CHECKED_IN' }, color: COLORS.info },
     { label: 'Contact Requests', icon: 'person-add',  screen: 'ContactRequests', color: COLORS.accent },
     { label: t('visit_logs'), icon: 'document-text',  screen: 'VisitLogs',       color: COLORS.success },
@@ -231,6 +253,48 @@ export const OfficerDashboardScreen: React.FC = () => {
                   request={req}
                   showVisitor
                   onPress={() => navigation.navigate('ReviewRequest', { id: req.id })}
+                />
+              ))
+        }
+
+        {/* Ongoing visits — this is THE direct answer to "how does an
+           officer check someone out": tap a card here, it goes straight
+           to CheckOutScreen for that specific visitor. Previously this
+           only existed buried behind a quick-action tile that jumped into
+           a tab, with no visibility into who was actually checked in. */}
+        <View style={{
+          flexDirection: 'row', justifyContent: 'space-between',
+          alignItems: 'center', marginBottom: 14, marginTop: 24,
+        }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text }}>
+            Ongoing Visits
+          </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('PendingRequests', { initialTab: 'CHECKED_IN' })}>
+            <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '600' }}>
+              {t('see_all')} →
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {checkedInLoading
+          ? [1,2].map(i => <VisitRequestSkeleton key={`ci-${i}`} />)
+          : (checkedInData?.data ?? []).length === 0
+            ? (
+              <View style={{
+                alignItems: 'center', padding: 24,
+                backgroundColor: COLORS.white, borderRadius: 14,
+              }}>
+                <Ionicons name="log-in-outline" size={40} color={COLORS.textMuted} />
+                <Text style={{ color: COLORS.textMuted, fontSize: 14, marginTop: 8, textAlign: 'center' }}>
+                  Nobody is currently checked in.{'\n'}Scan a visitor's QR code to check them in.
+                </Text>
+              </View>
+            )
+            : (checkedInData?.data ?? []).map((req) => (
+                <OngoingVisitCard
+                  key={req.id}
+                  request={req}
+                  onPress={() => navigation.navigate('CheckOut', { visitRequestId: req.id })}
                 />
               ))
         }
