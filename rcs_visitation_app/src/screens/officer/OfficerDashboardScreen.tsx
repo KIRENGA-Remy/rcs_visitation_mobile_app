@@ -66,10 +66,6 @@ export const OfficerDashboardScreen: React.FC = () => {
   const refresh = useCallback(() => { refetchStats(); refetchReqs(); refetchCheckedIn(); }, []);
 
   const statCards = useMemo(() => [
-    // Most urgent/actionable first — a visit still checked in past its
-    // scheduled end time needs the officer to act; nothing auto-completes
-    // it (see VisitRequestCard.tsx for why that's deliberate).
-    { label: 'Overdue Check-outs',   value: overview?.overdueCheckouts ?? 0,          icon: 'alert-circle',  color: COLORS.error   },
     { label: t('today_checkins'),    value: overview?.todayCheckins ?? 0,             icon: 'enter',         color: COLORS.primary },
     { label: t('pending_requests'),  value: overview?.visitRequests?.pending ?? 0,    icon: 'time',          color: COLORS.warning },
     { label: 'Contact Requests',     value: overview?.pendingContactRequests ?? 0,    icon: 'person-add',   color: COLORS.accent  },
@@ -155,7 +151,7 @@ export const OfficerDashboardScreen: React.FC = () => {
         {/* Stats grid */}
         {statsLoading
           ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {[1,2,3,4,5].map(i => (
+              {[1,2,3,4].map(i => (
                 <View key={i} style={{ width: '47%', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 14, height: 88 }} />
               ))}
             </View>
