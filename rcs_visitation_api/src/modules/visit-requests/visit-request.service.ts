@@ -232,7 +232,63 @@ export class VisitRequestService {
    * (assignedPrisonId null) falls back to the previous unscoped behaviour
    * rather than being shown literally nothing.
    */
+  /**
+   * Same lazy-check pattern as expirePastSchedules() — no cron scheduler
+   * exists in this backend, so this runs whenever an officer's request
+   * list is actually fetched (which happens constantly — every dashboard
+   * load). Finds checked-in visits whose scheduled slot has already ended
+   * and that haven't been notified about yet, notifies every officer
+   * assigned to that prison (not just whoever did the original check-in,
+   * since shifts change), and marks them so this doesn't repeat on every
+   * subsequent fetch.
+   */
+  private async notifyOverdueCheckouts() {
+    const overdueLogs = await prisma.visitLog.findMany({
+      where: {
+        actualCheckoutTime: null,
+        overdueNotifiedAt: null,
+        visitRequest: { schedule: { endTime: { lt: new Date() } } },
+      },
+      include: {
+        visitRequest: {
+          include: {
+            visitorProfile: { include: { user: { select: { firstName: true, lastName: true } } } },
+            prisoner: { select: { firstName: true, lastName: true } },
+            schedule: { select: { prisonId: true } },
+          },
+        },
+      },
+    });
+
+    if (overdueLogs.length === 0) return;
+
+    for (const log of overdueLogs) {
+      const visitorName = log.visitRequest.visitorProfile?.user
+        ? `${log.visitRequest.visitorProfile.user.firstName} ${log.visitRequest.visitorProfile.user.lastName}` : 'A visitor';
+      const prisonerName = log.visitRequest.prisoner
+        ? `${log.visitRequest.prisoner.firstName} ${log.visitRequest.prisoner.lastName}` : 'a prisoner';
+      const prisonId = log.visitRequest.schedule?.prisonId;
+
+      const officers = prisonId
+        ? await prisma.user.findMany({ where: { role: 'PRISON_OFFICER', assignedPrisonId: prisonId }, select: { id: true } })
+        : [];
+
+      await Promise.allSettled([
+        ...officers.map((o) =>
+          notificationService.send({
+            userId: o.id,
+            type: 'VISIT_OVERDUE',
+            title: 'Visit Needs Check-Out',
+            body: `${visitorName}'s visit with ${prisonerName} has ended. Please check them out.`,
+          })
+        ),
+        prisma.visitLog.update({ where: { id: log.id }, data: { overdueNotifiedAt: new Date() } }),
+      ]);
+    }
+  }
+
   async allPrisonRequests(query: { status?: string; page?: unknown; limit?: unknown }, requestorId: string, requestorRole: string) {
+    if (requestorRole === 'PRISON_OFFICER') await this.notifyOverdueCheckouts();
     const { page, limit, skip } = parsePagination(query);
     const where: any = {};
     if (query.status) where.status = query.status;
